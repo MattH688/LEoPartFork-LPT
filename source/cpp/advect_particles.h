@@ -80,8 +80,31 @@ public:
   // Step forward in time dt
   void do_step(double dt);
 
+  // Step forward in time dt & Lagrangain Particle Tracking
+  //  LPTParameters expected...
+  //
+  //[0]    Particle Diameter (m)
+  //[1]    Particle Density (Kg/m3)
+  //[2]    Flow Density (Kg/m3)
+  //[3]    Flow Dynamic Viscosity (Kg/m.s)
+  //[4]    Microfluidic Height Square Channel (m)
+  //[5]    Microfluidic Width Square Channel (m)
+  //
+  void do_stepLPT(double dt,
+      Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
+
   // Update facet info on moving mesh
   void update_facets_info();
+  
+  // Calculating Lagrangain particle movement
+  static double cal_drag(double dynVisc, double particleDiameter,
+    double flowDensity, Point& up, Point& up_1);
+  static double cal_relax(double dynVisc, double diameter, double density);
+  static double cal_reynolds(double dynVisc, double particleDiameter,
+    double flowDensity, Point& up,  Point& up_1);
+  static double cal_WallLiftSq(double dynVisc, double particleDiameter,
+    double flowDensity, int i, Point& up,  Point& up_1, double h, double w);
+  double cal_Norm(double x, int n);
 
   // Destructor
   ~advect_particles();

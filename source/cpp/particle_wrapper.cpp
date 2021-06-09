@@ -83,6 +83,9 @@ PYBIND11_MODULE(particle_wrapper, m)
            Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>>,
            Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>>>())
       .def("do_step", &dolfin::advect_particles::do_step)
+      .def("do_stepLPT", &dolfin::advect_particles::do_stepLPT) 
+           //std::array<std::array<float,6>,1> LPTParameters)
+      //.def("do_step_LP", &dolfin::advect_particles::do_step_LP)
       .def("update_facets_info", &dolfin::advect_particles::update_facets_info);
 
   py::class_<dolfin::advect_rk2>(m, "advect_rk2")
