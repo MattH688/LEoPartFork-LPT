@@ -5,6 +5,8 @@
 LEoPart integrates particle functionality into the open-source finite element library [FEniCS](www.fenicsproject.org). LEoPart is so much as to say **L**agrangian-**E**ulerian **o**n **Part**icles,
 and might remind you of the animal with particles imprinted on its skin.
 
+This library is a branch adding Lagrangian particle tracking, 'do_stepLPT', in the 'advect_particles' class. This adds the ability to move particles based on particle size and density. The LPT has been tailoured to microfluidic channels with assumption of the wall lift.
+
 Main purpose of this library is to advect and project scattered particle data onto a mesh in an accurate and -optionally- (locally) conservative manner. By blending a finite element mesh and
 Lagrangian particles, the library enables to solve hyperbolic conservation laws in an accurate and conservative manner, yet free of numerical diffusion. Alternatively, LEoPart might come in handy
 if you just need to trace large numbers of particles on a fixed or moving mesh polygonal or polyhedral mesh.
