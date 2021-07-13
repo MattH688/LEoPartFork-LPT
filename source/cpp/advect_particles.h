@@ -79,6 +79,9 @@ public:
 
   // Step forward in time dt
   void do_step(double dt);
+  // Step forward in time dt using LPT
+  void do_step(double dt,
+    Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
 
   // Step forward in time dt & Lagrangain Particle Tracking
   //  LPTParameters expected...
@@ -90,7 +93,7 @@ public:
   //[4]    Microfluidic Height Square Channel (m)
   //[5]    Microfluidic Width Square Channel (m)
   //
-  void do_stepLPT(double dt,
+  Point do_stepLPT(double dt, Point& up, Point& up_1,
       Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
 
   // Update facet info on moving mesh
@@ -196,6 +199,17 @@ public:
 
   // Step forward in time dt
   void do_step(double dt);
+  // Step forward in time dt & Lagrangain Particle Tracking
+  //  LPTParameters expected...
+  //
+  //[0]    Particle Diameter (m)
+  //[1]    Particle Density (Kg/m3)
+  //[2]    Flow Density (Kg/m3)
+  //[3]    Flow Dynamic Viscosity (Kg/m.s)
+  //[4]    Microfluidic Height Square Channel (m)
+  //[5]    Microfluidic Width Square Channel (m)
+  void do_step(double dt,
+    Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
 
   void init_weights()
   {
@@ -212,6 +226,19 @@ public:
   // Step forward in time dt
   void do_step(double dt);
 
+  // Step forward in time dt & Lagrangain Particle Tracking
+  //  LPTParameters expected...
+  //
+  //[0]    Particle Diameter (m)
+  //[1]    Particle Density (Kg/m3)
+  //[2]    Flow Density (Kg/m3)
+  //[3]    Flow Dynamic Viscosity (Kg/m.s)
+  //[4]    Microfluidic Height Square Channel (m)
+  //[5]    Microfluidic Width Square Channel (m)
+  void do_step(double dt,
+    Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
+
+
   void init_weights()
   {
     dti = {0.5, 0.75, 1.0};
@@ -226,6 +253,17 @@ public:
 
   // Step forward in time dt
   void do_step(double dt);
+  // Step forward in time dt & Lagrangain Particle Tracking
+  //  LPTParameters expected...
+  //
+  //[0]    Particle Diameter (m)
+  //[1]    Particle Density (Kg/m3)
+  //[2]    Flow Density (Kg/m3)
+  //[3]    Flow Dynamic Viscosity (Kg/m.s)
+  //[4]    Microfluidic Height Square Channel (m)
+  //[5]    Microfluidic Width Square Channel (m)
+  void do_step(double dt,
+    Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
 
 protected:
 
