@@ -102,11 +102,13 @@ which is now hosted at** https://bitbucket.org/jakob_maljaars/leopart_python
     cd ../..
     ```
     Note the cmake command may require configuration if multiple Python installations exist. Otherwise Python may not find the complied cpp library and produce the error   
-    ``` File "/usr/local/lib/python3.8/dist-packages/leopart/ParticleFun.py", line 29, in <module>
-          from leopart.cpp import particle_wrapper as compiled_module
-    ImportError: cannot import name 'particle_wrapper' from 'leopart.cpp' (unknown location) ```
+    ``` 
+    File "/usr/local/lib/python3.8/dist-packages/leopart/ParticleFun.py", line 29, in <module>
+      from leopart.cpp import particle_wrapper as compiled_module
+    ImportError: cannot import name 'particle_wrapper' from 'leopart.cpp' (unknown location) 
+    ```
   
-  For example `cmake . -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3.8`.
+  The additional configeration tells cmake which Python Interpter to use, for example `cmake . -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3.8`.
 
 4. Add library to your PYTHONPATH
 
