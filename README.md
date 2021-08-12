@@ -101,6 +101,7 @@ which is now hosted at** https://bitbucket.org/jakob_maljaars/leopart_python
     make
     cd ../..
     ```
+    Note the cmake command may require configuration to use the correct version of Python. Otherwise Python will not find the correct complied cpp library. For example `cmake . -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3.8`.
 
 4. Add library to your PYTHONPATH
 
