@@ -108,7 +108,7 @@ which is now hosted at** https://bitbucket.org/jakob_maljaars/leopart_python
     ImportError: cannot import name 'particle_wrapper' from 'leopart.cpp' (unknown location) 
     ```
   
-  The additional configeration tells cmake which Python Interpter to use, for example `cmake . -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3.8`.
+      The additional configeration tells cmake which Python Interpter to use, for example `cmake . -DPYTHON_EXECUTABLE:FILEPATH=/usr/bin/python3.8`.
 
 4. Add library to your PYTHONPATH
 
