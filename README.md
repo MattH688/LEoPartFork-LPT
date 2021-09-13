@@ -2,7 +2,7 @@
 [![CircleCI](https://circleci.com/bb/jakob_maljaars/leopart/tree/master.svg?style=shield)](https://circleci.com/bb/jakob_maljaars/leopart/tree/master)
 [![Documentation Status](https://readthedocs.org/projects/leopart/badge/?version=latest)](https://leopart.readthedocs.io/en/latest/?badge=latest)
 
-**NOTE:** This is a branch of LEoPart adding Lagrangian particle tracking (LPT), 'do_step' with additiona LPT functionality, in the 'advect_particles' class. This adds the ability to move particles based on particle size and density. The LPT has been tailoured to microfluidic channels with assumption of the wall lift. Additionally this branch adapts the dump2file class in particlefun.py to export particles to ".csv" for ParaView visualisation. See [NanoMedic.org](https://nanomedic.org) for more information.
+**NOTE:** This is a branch of LEoPart adding Lagrangian particle tracking (LPT), 'do_step' with additiona LPT functionality, in the 'advect_particles' class. This adds the ability to move particles based on particle size and density. The LPT has been tailoured to microfluidic channels with assumption of the wall lift. Additionally this branch adapts the dump2file class in particlefun.py to export particles to ".csv" for ParaView visualisation. See [NanoMedic.org](https://nanomedic.org) for more information (Coming Soon!).
 
 LEoPart integrates particle functionality into the open-source finite element library [FEniCS](www.fenicsproject.org). LEoPart is so much as to say **L**agrangian-**E**ulerian **o**n **Part**icles,
 and might remind you of the animal with particles imprinted on its skin.
