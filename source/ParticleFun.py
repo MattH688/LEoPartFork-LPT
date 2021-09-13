@@ -180,32 +180,91 @@ class particles(compiled_module.particles):
         num_particles = comm.bcast(num_particles, root=0)
         return num_particles
 
-    def dump2file(self, mesh, fname_list, property_list, mode, clean_old=False):
+    def dump2file(self, mesh, fname_list, property_list, mode1, clean_old=False):
+        """
+        Export files in '.csv' format for Paraview visualisation of particle tracks
+
+        Requires:
+            mesh
+            fname_list = file location + file name
+                /ExampleData/
+                
+        Visualise in Paraview by...
+        1) Import Particle .csv file
+        2) Use filter "TableToPoints"
+        2.5) Use "Representation" field to visualise particles
+        """
+        import csv
+        import os
+        
+        
+        # Legacy code - Unsure on purpose but used for importing process
         if isinstance(fname_list, str) and isinstance(property_list, int):
             fname_list = [fname_list]
             property_list = [property_list]
 
-        assert isinstance(fname_list, list) and isinstance(property_list, list), (
-            "Wrong dump2file" " request"
-        )
-        assert len(fname_list) == len(property_list), (
-            "Property list and index list must " "have same length"
-        )
 
-        # Remove files if clean_old = True
-        if clean_old:
-            for fname in fname_list:
-                try:
-                    os.remove(fname)
-                except OSError:
-                    pass
+
+        # ## Make folder to store particles in
+        fname_list[0] = os.path.join(fname_list[0], "Particles")
+        if (comm.Get_rank() == 0) and not os.path.exists(fname_list[0]):
+            os.makedirs(fname_list[0])
+        # print(fname_list)
+
+        # assert isinstance(fname_list, list) and isinstance(property_list, list), (
+        #     "Wrong dump2file" " request"
+        # )
+        # assert len(fname_list) == len(property_list), (
+        #     "Property list and index list must " "have same length"
+        # )
+
+        # # Remove files if clean_old = True
+        # if clean_old:
+        #     for fname in fname_list:
+        #         try:
+        #             os.remove(fname)
+        #         except OSError:
+        #             pass
 
         for (property_idx, fname) in zip(property_list, fname_list):
+            ParticleNum = comm.gather(self.return_property(mesh, 2).T, root=0)
             property_root = comm.gather(self.return_property(mesh, property_idx).T, root=0)
+
             if comm.Get_rank() == 0:
-                with open(fname, mode) as f:
-                    property_root = np.float16(np.hstack(property_root).T)
-                    pickle.dump(property_root, f)
+                if not ParticleNum[0]:
+                    print("No particles detected")
+                else:
+                    # with open('', mode='a+') as csvfile:
+                    Ftext = "{}/Particle_{:.0f}.csv".format(fname_list[0], ParticleNum[0][0])
+                    # Check if file exists to put row ID in
+                    if not os.path.exists(Ftext):
+                        RowID = True
+                    else:
+                        RowID = False
+                    with open(Ftext, mode=mode1) as csvfile:
+                        CSVwriter = csv.writer(csvfile, delimiter=',')
+
+                        # spamwriter = csv.writer(csvfile, delimiter=' ',quotechar='|',
+                        #     quoting=csv.QUOTE_MINIMAL)
+                        # with open(fname, mode) as f:
+                        property_root = np.float16(np.hstack(property_root).T)
+                        # print(property_root)
+                        # print(property_root[0])
+                    #     pickle.dump(property_root, f))
+                        # print("Length of Co-ords: ",len(property_root[0]))
+                        if (RowID == True):
+                            if (len(property_root[0]) == 3):
+                                CSVwriter.writerow(['x', 'y', 'z'])
+                            else:
+                                CSVwriter.writerow(['x', 'y'])
+                        CSVwriter.writerow(property_root[0])
+
+                    # ofile = File("u.pvd")
+                    # ofile << u, t
+                    
+                    # with open(fname, mode) as f:
+                    #     property_root = np.float16(np.hstack(property_root).T)
+                    #     pickle.dump(property_root, f)
         return
 
 
@@ -250,6 +309,17 @@ class advect_particles(compiled_module.advect_particles):
         super().__init__(*tuple(a))
 
     def do_step(self, *args):
+        """
+        Advect the particles over a timestep
+
+        Parameters
+        ----------
+        dt: float
+            Timestep
+        """
+        super().do_step(*args)
+        
+    def do_step_LP(self, *args):
         """
         Advect the particles over a timestep
 
