@@ -93,7 +93,7 @@ public:
   //[4]    Microfluidic Height Square Channel (m)
   //[5]    Microfluidic Width Square Channel (m)
   //
-  Point do_stepLPT(double dt, Point& up, Point& up_1,
+  Point do_stepLPT(double dt, Point& up, Point& up_1, Point& up1,
       Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
 
   // Update facet info on moving mesh
@@ -106,7 +106,8 @@ public:
   static double cal_reynolds(double dynVisc, double particleDiameter,
     double flowDensity, Point& up,  Point& up_1);
   static double cal_WallLiftSq(double dynVisc, double particleDiameter,
-    double flowDensity, int i, Point& up,  Point& up_1, double h, double w);
+    double flowDensity, double reynolds, int i, Point& up,  Point& up_1, double h, double w);
+  // static double cal_ParticleDistFromBoundary(Point& pp, const Mesh* mesh);
   double cal_Norm(double x, int n);
 
   // Destructor
@@ -165,7 +166,7 @@ protected:
   // Method for substepping in multistep schemes
 
   void do_substep(double dt, Point& up, const std::size_t cidx,
-                  std::size_t pidx, const std::size_t step,
+                  std::size_t pidx, std::size_t& step,
                   const std::size_t num_steps, const std::size_t xp0_idx,
                   const std::size_t up0_idx,
                   std::vector<std::array<std::size_t, 3>>& reloc);
