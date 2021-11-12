@@ -511,10 +511,10 @@ Point advect_particles::do_stepLPT(double dt, Point& up, Point& up_1, Point& up1
         std::cout << "up1 Add lift: " << up1 << std::endl;
         if (up1[ii] > 0) // R positive
         {
-          up[ii] += ( lift * (std::abs(up[iP]) / ratioU) ) * 10000;
+          up[ii] += ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
         } else // R negative.
         {
-          up[ii] -= ( lift * (std::abs(up[iP]) / ratioU) ) * 10000;
+          up[ii] -= ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
         }
       }
     }
@@ -1142,7 +1142,7 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   // Flnl *= -1;
 
 
-  double uMax = 0.7; // Needs to be imported from problem parameters
+  double uMax = 0.8; // Needs to be imported from problem parameters
 
   // 4.0 * Umax * x[1] * (0.41 - x[1]) / pow(0.41, 2)
   // up[ii] = up[ii] * ( LPTVecT / upNorm);
@@ -1197,9 +1197,9 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   // std::cout << "Hydraulic Diameter: " << H << std::endl;
 
   // Lift force
-  //  Using the defiend G1 and G2 earlier
+  //  Using the defined G1 and G2 earlier
   //  & shear rate and shear gradient
-  double CL = ( 10 * pow( Beta, 2) * GSpot[0][s] ) + (Beta * Lander * GSpot[1][s] );
+  double CL = ( 1000 * pow( Beta, 2) * GSpot[0][s] ) + (Beta * Lander * GSpot[1][s] );
   // CL1 = CL1 * 2;
   // double CL = ( pow( H, 2) ) / ((particleDiameter / 2) * sqrt(reynolds));
   std::cout << "Lift co-efficient (CL): " << CL << std::endl;
