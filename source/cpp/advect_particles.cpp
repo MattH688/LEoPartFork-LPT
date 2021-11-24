@@ -353,6 +353,7 @@ void advect_particles::set_bfacets(const MeshFunction<std::size_t>& mesh_func)
 // - Add old particle velocity to particle slot 2
 Point advect_particles::do_stepLPT(double dt, Point& up, Point& up_1,
   Point& up1, Point& pPos,
+  // Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic>> LPTParameters) 
   Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters) 
 {
 
@@ -367,6 +368,44 @@ Point advect_particles::do_stepLPT(double dt, Point& up, Point& up_1,
   double flowDynamicViscosity = LPTParameters[3];
   double MicroH = LPTParameters[4];
   double MicroW = LPTParameters[5];
+  double DisableLift = LPTParameters[6];
+
+  // std::cout << "LPTParameters[6]: " << LPTParameters[6] << std::endl;
+
+  // double smallestXY;
+  // double smallestZ;
+  // double distanceXY;
+  // double distanceZ;
+  // BoundariesLift is several arrays for checking the particle distance from boundary
+
+  // distance = (LPTParameters[6][i][2]-pPos[2])**2
+  //   + (LPTParameters[6][i][1]-pPos[1])**2 + (LPTParameters[6][i][0]-pPos[0])**2
+  // idy,idx = numpy.where(distance==distance.min())
+  // (unsigned int ii = 0; ii < gdim; ii++)
+  // for (unsigned int ii = 0; ii < len(BoundariesLift); ii++)
+  // {
+  //   for (unsigned int i = 0; i < len(BoundariesLift[ii][1]); i++)
+  //   {
+  //     // XY axis
+  //     distanceXY = (BoundariesLift[ii][1][i]-pPos[1])
+  //       + (BoundariesLift[ii][0][i]-pPos[0]);
+  //     if (distanceXY < smallestXY)
+  //     {
+  //       smallestXY = distanceXY;
+  //     } else if (ii == 0)
+  //     {
+  //       smallestXY = distanceXY;
+  //     }
+  //     // Z axis
+  //     distanceZ = (BoundariesLift[ii][2][i]-pPos[2]);
+  //     if (distanceZ < smallestZ)
+  //     {
+  //       smallestZ = distanceZ;
+  //     }
+  //   }
+  // }
+  
+
 
   // double normFlow = up.norm();
 
@@ -413,25 +452,42 @@ Point advect_particles::do_stepLPT(double dt, Point& up, Point& up_1,
     flowDynamicViscosity, particleDiameter, flowDensity, up, up_1);
 
   // If final dimension (Y (2D) or Z (3D)), apply buoyancy term
-  const double G = 9.8; // Gravity
-  double AddG = (particleDensity - flowDensity);
-  AddG *= G;
-  AddG /= particleDensity;
+  // const double G = 9.8; // Gravity
+  // double AddG = (particleDensity - flowDensity);
+  // AddG *= G;
+  // AddG /= particleDensity;
+
+  // double uMax = 0.8;
+  // double H = (MicroW * MicroH);
+  // H *= 2;
+  // H /= (MicroW + MicroH);
+
+
 
   // Loop particle values for LPT
   for (unsigned int ii = 0; ii < gdim; ii++)
   {
+    // if (ii == 2)
+    // {
+    //   int s = smallestZ / MicroW;
+    // } else
+    // {
+    //   int s = smallestXY / MicroH;
+    // }
+    int s = 0;
+    // std::cout << "Distance: " << s << std::endl;
+
     // Calculate Wall lift for LPT particles - Dependent on axis
     double lift = this->cal_WallLiftSq(
       flowDynamicViscosity, particleDiameter, flowDensity, reynolds, ii, up,
-      up1, pPos, gdim, MicroH, MicroW);
-
+      up1, pPos, gdim, MicroH, MicroW, s);
 
     // Calculate particle velocity within flow in axis direction
     //  Less than 0 (negative) implies particle has changed direction
     //      Leave as 0 m / s as could be dramatic flow drop relative
     //      to particle velocity. For example 3 - 10
     double particleVelocity = (up[ii] - up_1[ii]);
+    // double particleVelocity = (std:abs(up[ii]) - std:abs(up_1[ii]));
     // Save forward moving force, Fluid u
     // double uF = up[ii];
     // double uMax = 0.7;
@@ -448,6 +504,11 @@ Point advect_particles::do_stepLPT(double dt, Point& up, Point& up_1,
     double ForceBal = ((drag * reynolds) / 24);
     // std::cout << "ForceBal1: " << ForceBal << std::endl;
     ForceBal *= (relax);
+
+    // std::cout << "ParticleReynolds: " << reynolds << std::endl;
+    // std::cout << "Drag: " << drag << std::endl;
+    // std::cout << "relax: " << relax << std::endl;
+
     // std::cout << "ForceBal2: " << ForceBal << std::endl;
     // ForceBal *= particleVelocity;
     // // std::cout << "ForceBal3: " << ForceBal << std::endl;
@@ -478,17 +539,33 @@ Point advect_particles::do_stepLPT(double dt, Point& up, Point& up_1,
     // up[ii] -= ((lift) * ForceBal * (exp(-dt/ForceBal) - 1));
 
     // Treat as neutrally bouyant
-    std::cout << "Lift Force: " << lift << std::endl;
+    // std::cout << "Lift Force: " << lift << std::endl;
+
     // std::cout << "Particle Velocity w/o lift: " << up[ii] << std::endl;
-    // std::cout << "Added lift: " << ((lift + uF) * ForceBal * (1 - exp(-dt/ForceBal))) << std::endl;
+    std::cout << "Added lift: " << (lift * ForceBal * (exp(-dt/ForceBal) - 1)) << std::endl;
     
     // up[ii] -= lift * 100;
 
-    std::cout << "e(dT/t) - 1: " << (exp(-dt/ForceBal) - 1) << std::endl;
-    std::cout << "Force Balance: " << ForceBal << std::endl;
+    // std::cout << "(exp(-dT/t) - 1): " << std::abs(exp(-dt/ForceBal) - 1) << std::endl;
+    // std::cout << "Force Balance: " << ForceBal << std::endl;
 
     // Lift should be positive / negative defined in WallLiftSq function
-    up[ii] += ((lift * ForceBal) * std::abs(exp(-dt/ForceBal) - 1));
+    if (DisableLift == 1)
+    {
+      up[ii] += ((lift * ForceBal) * std::abs(exp(-dt/ForceBal) - 1));
+    } else
+    {
+      std::cout << "Lift Disabled: " << std::endl;
+    }
+    
+    // if (ii == gdim-1) // if Z dimension
+    // {
+    //   up[ii] += (((AddG + lift) * ForceBal) * std::abs(exp(-dt/ForceBal) - 1));
+    // } else // X or Y axis
+    // {
+    //   up[ii] += ((lift * ForceBal) * std::abs(exp(-dt/ForceBal) - 1));
+    // }
+    
 
     // if (ii == gdim-1) // if Z dimension
     // { // Add gravity if the last slot
@@ -989,7 +1066,7 @@ double advect_particles::cal_reynolds(double dynVisc,
 double advect_particles::cal_WallLiftSq(double dynVisc, 
   double particleDiameter, double flowDensity, double reynolds,
   int i, Point& up, Point& up1, Point& pPos, int gdim,
-  double h, double w)
+  double h, double w, int s)
 {
 
   // Initialise G1 and G2 for lift constants
@@ -1121,7 +1198,8 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   // Calculate relative speed of particle and flow
   //    Require for stress rate and shear gradient
   // double pNorm = up_1.norm();
-  double uNorm = up.norm();
+  // double uNorm = up.norm();
+  double uNorm1 = up1.norm();
 
   // 
   // double relativeSpeed = pNorm - uNorm;
@@ -1129,9 +1207,11 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   // double w = 0.0005; // X or Y axis width
   // double h = 0.000160; // Z axis height
   //double H = (2 * w * h) / (w + h); // Hydrodynamic Diametre
-  double H = (w * h);
-  H *= 2;
-  H /= (w + h);
+  
+  // double H = (w * h);
+  // H *= 2;
+  // H /= (w + h);
+  double H = 0.0005; // 500 um width
 
   // Calculate fl co-efficient based on H^2 / ( pd^2 * sqrtroot(Reynolds))
   // double Fl_temp = pow(particleDiameter,2);
@@ -1174,7 +1254,13 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   // x is uNorm, uMax is maximum flow rate
   // Function is divided by H to make percentage and times by 100
   //    to make it accessable "int" for GSpot
-  int s = (((H/2 - H/2 * sqrt(1 - (1/uMax) * uNorm)) / H) * 100);
+  // uNorm1 is the centre line of the channel for velocities, expected to be
+  //    parabolic and avoid issues where s can be small on XY axis when 
+  //    particle is centred.
+  if (s != 0)
+  {
+    s = (((H/2 - H/2 * sqrt(1 - (1/uMax) * uNorm1)) / H) * 100);
+  }
 
   // If Z axis, use Z axis height and P position
   //  Assumed is Z is a constant height
@@ -1182,13 +1268,14 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   {
     // Point pPos = _P->x(ci->index(), 1);
     // s = ( Z particle position minus zMin ) / Zrange
-    std::cout << "pPos[2]: " << pPos[2] << std::endl;
-    std::cout << "Za axis S value: " << ((pPos[2] - 0.0110585) / 0.00016) << std::endl;
+    // std::cout << "pPos[2]: " << pPos[2] << std::endl;
+    // std::cout << "Za axis S value: " << ((pPos[2] - 0.0110585) / 0.00016) << std::endl;
     // s needs to be out of 100, not decimal
     s = ((pPos[2] - 0.0110585) / 0.00016) * 100;
     // Set Z axis to something reasonable?
-    // uNorm = std::abs(up[2]);
-    // uMax = std::abs(up[2]);
+    // uNorm = std::abs(up[2]); // uMax * 0.01;//std::abs(up[2]);
+    uMax = 0.1; // Bouyancy acting upon particle
+    H = 0.00016; // Set Z to boundary height, not hydraulic
   }
 
   // Shear rate - Based on velocity norm at particle position
@@ -1205,19 +1292,24 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   // Comsol implementation
   // double k = ( particleDiameter / 2 ) / H;
 
+  // Stopped the fail due to s = 0 causing inf bug
   if (s < 1)
   {
     s = 1;
+  } else if (s > 99)
+  {
+    s = 99;
   }
   
-  double Lander = ( uNorm / (s * 0.01 * H) ); //uNorm * pow(k, 2);
+  // double Lander = ( uNorm / (s * 0.01 * H) ); //uNorm * pow(k, 2);
   
-  double Beta = dynVisc * Lander; //Beta = uNorm * k;
+  // double Beta = dynVisc * Lander; //Beta = uNorm * k;
 
 
-  // If, for some reason, s is larger than 0.5.
-  //  Function should always make it sub 0.5 due to the square root
+  // If, for some reason, s is larger than 50.
+  //  Function should always make it sub 50 due to the square root
   //    plus and minus
+  //  Also set the equation to inverse if above 50 for the Z axis.
   int sU = 1;
   if (s > 50)
   {
@@ -1225,15 +1317,21 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
     sU = -1;
   }
 
-  std::cout << "Flow uNorm: " << uNorm << std::endl;
+  double Lander = ( uMax / (s * 0.01 * H) ); //uNorm * pow(k, 2);
+  // double Lander = 4 * uMax;
+
+  double Beta = dynVisc * Lander; //Beta = uNorm * k;
+  // double Beta = 4 * uMax * ( 1 - (2 * (s * 0.01) ) );
+
+  // std::cout << "Flow uNorm: " << uNorm << std::endl;
   std::cout << "P distance from boundary: " << s << std::endl;
 
   // Invert for the GSpot as index 50 is 0 distance from wall
   s = 50 - s;
-  std::cout << "Lander: " << Lander << std::endl;
-  std::cout << "Beta: " << Beta << std::endl;
-  std::cout << "G1 Spot(50-s): " << GSpot[0][s] << std::endl;
-  std::cout << "G2 Spot(50-s): " << GSpot[1][s] << std::endl;
+  // std::cout << "Lander: " << Lander << std::endl;
+  // std::cout << "Beta: " << Beta << std::endl;
+  // std::cout << "G1 Spot(50-s): " << GSpot[0][s] << std::endl;
+  // std::cout << "G2 Spot(50-s): " << GSpot[1][s] << std::endl;
 
   // std::cout << "uMax: " << uMax << std::endl;
   // std::cout << "uNorm: " << uNorm << std::endl;
@@ -1243,23 +1341,39 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   //  Using the defined G1 and G2 earlier
   //  & shear rate and shear gradient
   double CL = ( pow( Beta, 2) * GSpot[0][s] ) + (Beta * Lander * GSpot[1][s] );
+  // double CL = ( 36 * pow((1 - (2 * (s * 0.01) )), 2) * GSpot[0][s] );
+  // CL -= ( 36 * (1 - (2 * (s * 0.01) ) ) * GSpot[1][s] );
   // CL1 = CL1 * 2;
-  // double CL = ( pow( H, 2) ) / ((particleDiameter / 2) * sqrt(reynolds));
-  std::cout << "Lift co-efficient (CL): " << CL << std::endl;
+  // double Cs = 1L = ( pow( H, 2) ) / ((particleDiameter / 2) * sqrt(reynolds));
+  // std::cout << "Lift co-efficient (CL): " << CL << std::endl;
   // double CL1 = G1[0,s];
   // CL1 *= pow(Beta, 2);
   // double CL2 = Gspot
 
+  // Method using G1 G2
+  // Flnl = k^2 * Reynolds * CL
+  // k^2 = (particle radius / H)^2
   double Flnl = pow( ( (particleDiameter / 2) / H ) , 2);
-  Flnl *= (flowDensity * uMax * H) / dynVisc; //reynolds;
+  Flnl *= (flowDensity * uMax * H) / dynVisc; // Reynolds;
   Flnl *= CL;
   Flnl = std::abs(Flnl);
 
-  // double Flnl = pow((particleDiameter / 2),4); // pow((particleDiameter / 2),6);
-  // Flnl *= pow(uMax,2);
-  // Flnl *= flowDensity;
-  // Flnl *= CL; // 0.5
-  // Flnl /= pow(H, 2); // pow(H, 4); 
+  // Method using Di Carlo
+  // double Flnl = flowDensity;
+  // Flnl = flowDensity;
+  // Flnl *= pow( uMax, 2 );
+  // Flnl *= pow( (particleDiameter / 2), 6 );
+  // Flnl /= pow( H, 4 );
+
+  // G1G2 flow for 
+  //
+  // k^2 = (particle radius / H)^2
+  // double Flnl = pow(( (particleDiameter / 2) / H  ), 2); 
+  // Flnl *= pow(uMax,2); // Vmax^2 = Flow max velocity 
+  // Flnl *= flowDensity; // Po = Flow density
+  // Flnl *= CL; // G1 and G2
+  // Flnl *= pow( (particleDiameter / 2), 2); // a^2 = (Particle Radius)^2
+  // Flnl = std::abs(Flnl);
   // Flnl *= -10;
 
 
@@ -1268,41 +1382,46 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
     Flnl *= sU;
   } else { // Add lift to XY
     // Add lift if above 1% uMax to opposite direction (XY)
-    if ( (uMax * 0.01) < std::abs(up[i]) )
+    // if ( (uMax * 0.01) < std::abs(up[i]) )
+    // {
+    int iP;
+    if (i == 1) // y axis
     {
-      int iP;
-      if (i == 1) // y axis
-      {
-        iP = 0; // to change x axis
-      }
-      else // x axis
-      {
-        iP = 1; // to change y axis
-      }
-      // Add ratio of X:Y vectors
-      double ratioU = 1;
-      if (gdim == 3){
-        // Where y / y would be 1, therefore a 1:1 ratio
-        // ratio = x / y
-        ratioU += std::abs(up[0]) / std::abs(up[1]);
-      }
-      
-      std::cout << "up1 Add lift: " << up1 << std::endl;
-      if (up1[i] > 0) // R positive
-      {
-        // up[ii] += ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
-        // up[ii] += std::abs((lift * (std::abs(up[iP]) / ratioU) ) * ForceBal * (exp(-dt/ForceBal) - 1));
-        Flnl *= (std::abs(up[iP]) / ratioU);
-      } else // R negative.
-      {
-        // up[ii] -= ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
-        // up[ii] -= std::abs((lift * (std::abs(up[iP]) / ratioU) ) * ForceBal * (exp(-dt/ForceBal) - 1));
-        Flnl *= -1 * (std::abs(up[iP]) / ratioU);
-      }
-    } else // Apply no lift force
-    {
-      Flnl = 0;
+      iP = 0; // to change x axis
     }
+    else // x axis
+    {
+      iP = 1; // to change y axis
+    }
+    // Add ratio of X:Y vectors
+    double ratioU = 1;
+    if (gdim == 3){
+      // Where y / y would be 1, therefore a 1:1 ratio
+      // ratio = x / y
+      ratioU += std::abs(up[0]) / std::abs(up[1]);
+    }
+    
+    // std::cout << "up1 Add lift: " << up1 << std::endl;
+    // up1 is the direction along the X or Y axis the particle is moving
+    //  This assumes a parabolic where flow drops off towards the boundaries
+    //  Therefore, particle movement should be in the opposite direction to movement
+    Flnl *= (std::abs(up[iP]) / ratioU);
+    if (up1[i] < 0) // Positive along axis
+    {
+      // up[ii] += ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
+      // up[ii] += std::abs((lift * (std::abs(up[iP]) / ratioU) ) * ForceBal * (exp(-dt/ForceBal) - 1));
+      Flnl *= -1;
+    }
+    // } else // R negative.
+    // {
+    //   // up[ii] -= ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
+    //   // up[ii] -= std::abs((lift * (std::abs(up[iP]) / ratioU) ) * ForceBal * (exp(-dt/ForceBal) - 1));
+    //   Flnl *= (std::abs(up[iP]) / ratioU);
+    // }
+    // } else // Apply no lift force
+    // {
+    //   Flnl = 0;
+    // }
   }
 
 
@@ -1318,11 +1437,14 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
 //   // Mesh* mesh = _P->mesh();
 
 //   Mesh mesh1 = mesh;
-//   BoundingBoxTree::build(mesh1); //bbtree //= BoundingBoxTree.build(mesh);
+//   // BoundingBoxTree::build(mesh1); //bbtree //= BoundingBoxTree.build(mesh);
 //   // bbtree -> init()
 //   // bbtree->
 //   double distance = 0;
 //   int icup;
+
+
+
 //   icup, distance = BoundingBoxTree::compute_closest_entity(pp);
 //   std::cout << "P distance from boundary: " << distance << std::endl;
 
@@ -1380,6 +1502,11 @@ void advect_particles::do_step(double dt,
         if (iI == 0) // based on y = -x
         {
           pPos[iI] = pPos[iI] + -1 * (up[iI] * dt);
+        } else if (iI == 2)
+        {
+          // ((pPos[2] - 0.0110585) / 0.00016) * 100;
+          // Set Z to midpoint of channel
+          pPos[iI] = (0.00016 / 2) + 0.0110585;
         } else
         {
           pPos[iI] = pPos[iI] + (up[iI] * dt);
@@ -1400,6 +1527,8 @@ void advect_particles::do_step(double dt,
 
       Point up1(gdim, u_p1.data());
       std::cout << "P Vel1: " <<  up1 << std::endl;
+      // Create point to store up1 midpoint velocities
+      Point up2 = up1;
 
       // Previous velocity point
       Point up_1 = (_P->property(ci->index(), i, 1));
@@ -1412,20 +1541,22 @@ void advect_particles::do_step(double dt,
         // Take new position away from old
         pPos[iI] = pPos[iI] - pPos1[iI];
         // on axis direction (+/-), is velocity inc / dec
-        up1[iI] = up1[iI] - up[iI];
+        up2[iI] = up1[iI] - up[iI];
 
         // If velocity is moving in the positive direction
         //  relative to pPos+Vel - pPos on plane
-        if (up1[iI] > 0) 
+        if (up2[iI] > 0) 
         {
-          up1[iI] = 1;
+          // up1[iI] = 1;
+          up1[iI] = abs(up1[iI]);
         } else
         {
-          up1[iI] = -1;
+          // up1[iI] = -1;
+          up1[iI] = abs(up1[iI]) * -1;
         }
         if (pPos[iI] < 0) // Invert flow where positive xy is +ve/-ve
         {
-          up1[iI] = up1[iI] * -1;
+          up1[iI] *= -1;
         }
       }
       
@@ -2468,6 +2599,11 @@ void advect_rk2::do_step(double dt,
           if (iI == 0) // based on y = -x
           {
             pPos[iI] = pPos[iI] + -1 * (up[iI] * dt);
+          } else if (iI == 2)
+          {
+            // ((pPos[2] - 0.0110585) / 0.00016) * 100;
+            // Set Z to midpoint of channel
+            pPos[iI] = (0.00016 / 2) + 0.0110585;
           } else
           {
             pPos[iI] = pPos[iI] + (up[iI] * dt);
@@ -2476,7 +2612,7 @@ void advect_rk2::do_step(double dt,
         std::cout << "P Pos: " <<  pPos << std::endl;
 
         Utils::return_basis_matrix(basis_mat.data(), pPos, *ci,
-                                   _element);
+                                    _element);
 
         // Compute value at point using expansion coeffs and basis matrix, first
         // convert to Eigen matrix
@@ -2485,35 +2621,39 @@ void advect_rk2::do_step(double dt,
         // Eigen::Map<Eigen::VectorXd> exp_coeffs(
         //     coeffs.data(), _space_dimension);
         Eigen::VectorXd u_p1 = basis_mat * exp_coeffs;
- 
+
         Point up1(gdim, u_p1.data());
         std::cout << "P Vel1: " <<  up1 << std::endl;
+        // Create point to store up1 midpoint velocities
+        Point up2 = up1;
 
         // Previous velocity point
         Point up_1 = (_P->property(ci->index(), i, 1));
         std::cout << "P Velocity B4: " << up_1 << std::endl;
         // Point up_0 = (_P->property(ci->index(), i, 0));
-
         Point pPos1 = _P->x(ci->index(), i);
+
         for (std::size_t iI = 0; (iI < gdim); iI++)
         {
           // Take new position away from old
           pPos[iI] = pPos[iI] - pPos1[iI];
           // on axis direction (+/-), is velocity inc / dec
-          up1[iI] = up1[iI] - up[iI];
+          up2[iI] = up1[iI] - up[iI];
 
           // If velocity is moving in the positive direction
           //  relative to pPos+Vel - pPos on plane
-          if (up1[iI] > 0) 
+          if (up2[iI] > 0) 
           {
-            up1[iI] = 1;
+            // up1[iI] = 1;
+            up1[iI] = abs(up1[iI]);
           } else
           {
-            up1[iI] = -1;
+            // up1[iI] = -1;
+            up1[iI] = abs(up1[iI]) * -1;
           }
           if (pPos[iI] < 0) // Invert flow where positive xy is +ve/-ve
           {
-            up1[iI] = up1[iI] * -1;
+            up1[iI] *= -1;
           }
         }
         
@@ -2684,24 +2824,23 @@ void advect_rk3::do_step(double dt,
         Point pPos = _P->x(ci->index(), i);
         for (std::size_t iI = 0; (iI < gdim); iI++)
         {
-          // Unsure if y = -x is required
-          // if (iI == 0) // based on y = -x
-          // {
-          //   pPos[iI] = pPos[iI] + -1 * (up[iI] * dt);
-          // } else if (iI == 2) // Move on Z axis
-          // if (iI == 2) // Move on Z axis using y vel as Z too small
-          // {
-          //   pPos[iI] = pPos[iI] + (up[iI - 1] * dt);
-          // }else // Move on Y axis
-          // {
-            // Z axis 
-          pPos[iI] = pPos[iI] + (up[iI] * dt);
-          // }
+          if (iI == 0) // based on y = -x
+          {
+            pPos[iI] = pPos[iI] + -1 * (up[iI] * dt);
+          } else if (iI == 2)
+          {
+            // ((pPos[2] - 0.0110585) / 0.00016) * 100;
+            // Set Z to midpoint of channel
+            pPos[iI] = (0.00016 / 2) + 0.0110585;
+          } else
+          {
+            pPos[iI] = pPos[iI] + (up[iI] * dt);
+          }
         }
         std::cout << "P Pos: " <<  pPos << std::endl;
 
         Utils::return_basis_matrix(basis_mat.data(), pPos, *ci,
-                                   _element);
+                                    _element);
 
         // Compute value at point using expansion coeffs and basis matrix, first
         // convert to Eigen matrix
@@ -2710,38 +2849,41 @@ void advect_rk3::do_step(double dt,
         // Eigen::Map<Eigen::VectorXd> exp_coeffs(
         //     coeffs.data(), _space_dimension);
         Eigen::VectorXd u_p1 = basis_mat * exp_coeffs;
- 
+
         Point up1(gdim, u_p1.data());
         std::cout << "P Vel1: " <<  up1 << std::endl;
+        // Create point to store up1 midpoint velocities
+        Point up2 = up1;
 
         // Previous velocity point
         Point up_1 = (_P->property(ci->index(), i, 1));
         std::cout << "P Velocity B4: " << up_1 << std::endl;
         // Point up_0 = (_P->property(ci->index(), i, 0));
-
         Point pPos1 = _P->x(ci->index(), i);
+
         for (std::size_t iI = 0; (iI < gdim); iI++)
         {
           // Take new position away from old
           pPos[iI] = pPos[iI] - pPos1[iI];
           // on axis direction (+/-), is velocity inc / dec
-          up1[iI] = up1[iI] - up[iI];
+          up2[iI] = up1[iI] - up[iI];
 
           // If velocity is moving in the positive direction
           //  relative to pPos+Vel - pPos on plane
-          if (up1[iI] > 0) 
+          if (up2[iI] > 0) 
           {
-            up1[iI] = 1;
+            // up1[iI] = 1;
+            up1[iI] = abs(up1[iI]);
           } else
           {
-            up1[iI] = -1;
+            // up1[iI] = -1;
+            up1[iI] = abs(up1[iI]) * -1;
           }
           if (pPos[iI] < 0) // Invert flow where positive xy is +ve/-ve
           {
-            up1[iI] = up1[iI] * -1;
+            up1[iI] *= -1;
           }
         }
-        
 
         // up = do_stepLPT(dt, up, up_1, up1, LPTParameters);
         up = do_stepLPT(dt, up, up_1, up1, pPos1, LPTParameters);
@@ -2919,7 +3061,7 @@ void advect_rk4::do_step(double dt,
             coeffs.data(), _space_dimension);
         Eigen::VectorXd u_p = basis_mat * exp_coeffs;
 
-         Point up(gdim, u_p.data());
+        Point up(gdim, u_p.data());
 
         std::cout << "P Pos: " <<  _P->x(ci->index(), i) << std::endl;
         std::cout << "P Vel: " <<  up << std::endl;
@@ -2931,6 +3073,11 @@ void advect_rk4::do_step(double dt,
           if (iI == 0) // based on y = -x
           {
             pPos[iI] = pPos[iI] + -1 * (up[iI] * dt);
+          } else if (iI == 2)
+          {
+            // ((pPos[2] - 0.0110585) / 0.00016) * 100;
+            // Set Z to midpoint of channel
+            pPos[iI] = (0.00016 / 2) + 0.0110585;
           } else
           {
             pPos[iI] = pPos[iI] + (up[iI] * dt);
@@ -2939,7 +3086,7 @@ void advect_rk4::do_step(double dt,
         std::cout << "P Pos: " <<  pPos << std::endl;
 
         Utils::return_basis_matrix(basis_mat.data(), pPos, *ci,
-                                   _element);
+                                    _element);
 
         // Compute value at point using expansion coeffs and basis matrix, first
         // convert to Eigen matrix
@@ -2948,38 +3095,43 @@ void advect_rk4::do_step(double dt,
         // Eigen::Map<Eigen::VectorXd> exp_coeffs(
         //     coeffs.data(), _space_dimension);
         Eigen::VectorXd u_p1 = basis_mat * exp_coeffs;
- 
+
         Point up1(gdim, u_p1.data());
         std::cout << "P Vel1: " <<  up1 << std::endl;
+        // Create point to store up1 midpoint velocities
+        Point up2 = up1;
 
         // Previous velocity point
         Point up_1 = (_P->property(ci->index(), i, 1));
         std::cout << "P Velocity B4: " << up_1 << std::endl;
         // Point up_0 = (_P->property(ci->index(), i, 0));
-
         Point pPos1 = _P->x(ci->index(), i);
+
         for (std::size_t iI = 0; (iI < gdim); iI++)
         {
           // Take new position away from old
           pPos[iI] = pPos[iI] - pPos1[iI];
           // on axis direction (+/-), is velocity inc / dec
-          up1[iI] = up1[iI] - up[iI];
+          up2[iI] = up1[iI] - up[iI];
 
           // If velocity is moving in the positive direction
           //  relative to pPos+Vel - pPos on plane
-          if (up1[iI] > 0) 
+          if (up2[iI] > 0) 
           {
-            up1[iI] = 1;
+            // up1[iI] = 1;
+            up1[iI] = abs(up1[iI]);
           } else
           {
-            up1[iI] = -1;
+            // up1[iI] = -1;
+            up1[iI] = abs(up1[iI]) * -1;
           }
           if (pPos[iI] < 0) // Invert flow where positive xy is +ve/-ve
           {
-            up1[iI] = up1[iI] * -1;
+            up1[iI] *= -1;
           }
         }
         
+
         // up = do_stepLPT(dt, up, up_1, up1, LPTParameters);
         up = do_stepLPT(dt, up, up_1, up1, pPos1, LPTParameters);
 

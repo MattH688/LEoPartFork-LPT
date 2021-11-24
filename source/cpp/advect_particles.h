@@ -82,6 +82,9 @@ public:
   // Step forward in time dt using LPT
   void do_step(double dt,
     Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
+    
+  void do_step(double dt,
+    Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic>> LPTParameters);
 
   // Step forward in time dt & Lagrangain Particle Tracking
   //  LPTParameters expected...
@@ -95,6 +98,9 @@ public:
   //
   Point do_stepLPT(double dt, Point& up, Point& up_1, Point& up1, Point& pPos,
       Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
+  // New Test 1
+  // Point do_stepLPT(double dt, Point& up, Point& up_1, Point& up1, Point& pPos,
+  //     Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic>> LPTParameters);
 
   // Update facet info on moving mesh
   void update_facets_info();
@@ -107,7 +113,7 @@ public:
     double flowDensity, Point& up,  Point& up_1);
   static double cal_WallLiftSq(double dynVisc, double particleDiameter,
     double flowDensity, double reynolds, int i, Point& up,  Point& up1,
-    Point& pPos, int gdim, double h, double w);
+    Point& pPos, int gdim, double h, double w, int s);
   // static double cal_ParticleDistFromBoundary(Point& pp, const Mesh* mesh);
   double cal_Norm(double x, int n);
 
