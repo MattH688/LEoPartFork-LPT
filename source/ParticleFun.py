@@ -197,7 +197,7 @@ class particles(compiled_module.particles):
         import csv
         import os
         
-        
+        CellPartVelAdj = False
         # Legacy code - Unsure on purpose but used for importing process
         if isinstance(fname_list, str) and isinstance(property_list, int):
             fname_list = [fname_list]
@@ -233,6 +233,7 @@ class particles(compiled_module.particles):
             if comm.Get_rank() == 0:
                 if not ParticleNum[0]:
                     print("No particles detected")
+                    CellPartVelAdj = False
                 else:
                     # with open('', mode='a+') as csvfile:
                     Ftext = "{}/Particle_{:.0f}.csv".format(fname_list[0], ParticleNum[0][0])
@@ -241,33 +242,109 @@ class particles(compiled_module.particles):
                         RowID = True
                     else:
                         RowID = False
-                    with open(Ftext, mode=mode1) as csvfile:
-                        CSVwriter = csv.writer(csvfile, delimiter=',')
+                    if (mode1=="a+"):
+                        with open(Ftext, mode=mode1) as csvfile:
+                            CSVwriter = csv.writer(csvfile, delimiter=',')
 
-                        # spamwriter = csv.writer(csvfile, delimiter=' ',quotechar='|',
-                        #     quoting=csv.QUOTE_MINIMAL)
-                        # with open(fname, mode) as f:
-                        property_root = np.float16(np.hstack(property_root).T)
-                        # print(property_root)
-                        # print(property_root[0])
-                    #     pickle.dump(property_root, f))
-                        # print("Length of Co-ords: ",len(property_root[0]))
-                        if (RowID == True):
-                            if (len(property_root[0]) == 3):
-                                CSVwriter.writerow(['x', 'y', 'z'])
-                            else:
-                                CSVwriter.writerow(['x', 'y'])
-                        CSVwriter.writerow(property_root[0])
+                            # spamwriter = csv.writer(csvfile, delimiter=' ',quotechar='|',
+                            #     quoting=csv.QUOTE_MINIMAL)
+                            # with open(fname, mode) as f:
+                            property_root = np.float16(np.hstack(property_root).T)
+                            # print(property_root)
+                            # print(property_root[0])
+                        #     pickle.dump(property_root, f))
+                            # print("Length of Co-ords: ",len(property_root[0]))
+                            if (RowID == True):
+                                if (len(property_root[0]) == 3):
+                                    CSVwriter.writerow(['x', 'y', 'z'])
+                                else:
+                                    CSVwriter.writerow(['x', 'y'])
+                            CSVwriter.writerow(property_root[0])
 
-                    # ofile = File("u.pvd")
-                    # ofile << u, t
+
+                    if (mode1=="r"):
+                        with open(Ftext) as f:
+                            
+                            N = 100
+                            lastN = list(f)[-N:]
+                            # print("is open: ", (lastN == True))
+
+                            if (((not lastN) == False) & (all(lastN[0] == item for item in lastN))):
+                                CellPartVelAdj = True
+                                print("List all same")
+                            # else:
+                            #     CellPartVelAdj = False
+
+                            #all(x==myList[0] for x in myList)
+                            
+        return CellPartVelAdj
+        
+    def _Particle_Distance_To_Boundary(self, mesh, property_list, scaling_factor, BoundariesLift):
+
+        """
+        Similar to dump2file...
+        
+        1) Open each particle
+        2) Extract co-ordinates
+        3) Get distance from boundary selected
+        
+        """
+        import math
+        property_list = [property_list]
+        
+        for property_idx in property_list:
+            ParticleNum = comm.gather(self.return_property(mesh, 2).T, root=0)
+            property_root = comm.gather(self.return_property(mesh, property_idx).T, root=0)
+
+            if comm.Get_rank() == 0:
+                if not ParticleNum[0]:
+                    print("No particles detected")
+
+                else:
+                    property_root = np.float16(np.hstack(property_root).T)
+                    # Access first slot of particle for position
+                    print("Particle: ", property_root[0])
                     
-                    # with open(fname, mode) as f:
-                    #     property_root = np.float16(np.hstack(property_root).T)
-                    #     pickle.dump(property_root, f)
-        return
+                    pPos = property_root[0] * scaling_factor
+                    # BoundariesLift is several arrays for checking
+                    #    the particle distance from boundary
+                    # print(BoundariesLift)
+                    iDxx = 0
+                    smallestXY = 100
+                    smallestZ = 100
+                    for ii in BoundariesLift:
+                        iDx = 0
+                        
+                        if (iDxx < 2):
+                            for i in BoundariesLift[ii][0]:
+                                # XY axis
+                                distanceXY = math.sqrt(pow((BoundariesLift[ii][1][iDx]-pPos[1]),2)
+                                + pow((i-pPos[0]),2))
+                                # print("Wall: ", BoundariesLift[ii][1][iDx])
+                                if (distanceXY < smallestXY):
+                                    smallestXY = distanceXY
+                                elif (iDx == 0):
+                                    smallestXY = distanceXY
+                                iDx += 1
+                        else: 
+                            for i in BoundariesLift[ii][0]:
+                                # Z axis
+                                distanceZ = (i-pPos[2])
+                                if (distanceZ < smallestZ):
+                                    smallestZ = distanceZ
+                                elif (iDx == 0):
+                                    smallestZ = distanceZ
 
-
+                                iDx += 1
+                        iDxx += 1
+        print(abs(distanceXY))
+        print(abs(distanceZ))
+        
+        
+        
+        return [distanceXY, distanceZ]
+        # Need to write distance S XY and Z to particle
+        
 def _parse_advect_particles_args(args):
     args = list(args)
     args[1] = args[1]._cpp_object
