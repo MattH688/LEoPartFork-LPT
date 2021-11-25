@@ -451,6 +451,19 @@ Point advect_particles::do_stepLPT(double dt, Point& up, Point& up_1,
   double reynolds = this->cal_reynolds(
     flowDynamicViscosity, particleDiameter, flowDensity, up, up_1);
 
+  // dt particle relax time is (Drag * ReP) / (FlowDensity * Pdia^2)
+  //   Based upon ANSYS DEFINE_DPM_TIMESTEP which uses the particle relaxation time
+  //   to move particles if the timestep, dT, is too large.
+  //    https://www.afs.enea.it/project/neptunius/docs/fluent/html/udf/node79.htm
+
+  double dt1 = (pow(particleDiameter,2) * flowDensity);
+  dt1 /= (drag * reynolds);
+
+  if (dt > (dt1 / 5.))
+  {
+    dt = (dt1 / 5.);
+  }
+
   // If final dimension (Y (2D) or Z (3D)), apply buoyancy term
   // const double G = 9.8; // Gravity
   // double AddG = (particleDensity - flowDensity);
@@ -1257,7 +1270,7 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   // uNorm1 is the centre line of the channel for velocities, expected to be
   //    parabolic and avoid issues where s can be small on XY axis when 
   //    particle is centred.
-  if (s != 0)
+  if (s == 0)
   {
     s = (((H/2 - H/2 * sqrt(1 - (1/uMax) * uNorm1)) / H) * 100);
   }
