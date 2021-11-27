@@ -83,8 +83,8 @@ public:
   void do_step(double dt,
     Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
     
-  void do_step(double dt,
-    Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic>> LPTParameters);
+  // void do_step(double dt,
+  //   Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic>> LPTParameters);
 
   // Step forward in time dt & Lagrangain Particle Tracking
   //  LPTParameters expected...
@@ -97,6 +97,9 @@ public:
   //[5]    Microfluidic Width Square Channel (m)
   //
   Point do_stepLPT(double dt, Point& up, Point& up_1, Point& up1, Point& pPos,
+      Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
+      
+  static double DEFINE_DPM_TIMESTEP(double dt, Point& up, Point& up_1,
       Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
   // New Test 1
   // Point do_stepLPT(double dt, Point& up, Point& up_1, Point& up1, Point& pPos,
@@ -113,7 +116,7 @@ public:
     double flowDensity, Point& up,  Point& up_1);
   static double cal_WallLiftSq(double dynVisc, double particleDiameter,
     double flowDensity, double reynolds, int i, Point& up,  Point& up1,
-    Point& pPos, int gdim, double h, double w, int s);
+    Point& pPos, int gdim, double h, double w, double dt);
   // static double cal_ParticleDistFromBoundary(Point& pp, const Mesh* mesh);
   double cal_Norm(double x, int n);
 
@@ -177,6 +180,13 @@ protected:
                   const std::size_t num_steps, const std::size_t xp0_idx,
                   const std::size_t up0_idx,
                   std::vector<std::array<std::size_t, 3>>& reloc);
+                  
+  void do_substepLPT(double dt, Point& up, const std::size_t cidx,
+                  std::size_t pidx, std::size_t& step,
+                  const std::size_t num_steps, const std::size_t xp0_idx,
+                  const std::size_t up0_idx,
+                  std::vector<std::array<std::size_t, 3>>& reloc,
+                  const double ForaceBalance, Point& Acceleration);
 
   // Multi-stage scheme data
   std::size_t xp0_idx, up0_idx;

@@ -116,6 +116,12 @@ public:
   // Push particle to new position
   void push_particle(const double dt, const Point& up, const std::size_t cidx,
                      const std::size_t pidx);
+                     
+  // void push_particleLPT(const double dt, const Point& up, const std::size_t cidx,
+  //                    const std::size_t pidx, const Point& upLPT);
+                     
+  void push_particleLPT(const double dt, const Point& up, const std::size_t cidx,
+                     const std::size_t pidx, const double ForceBalance, const Point& Acceleration);
 
   // Particle collector, required in parallel
   void particle_communicator_collect(const std::size_t cidx,

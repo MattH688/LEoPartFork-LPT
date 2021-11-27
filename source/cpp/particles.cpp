@@ -297,6 +297,16 @@ void particles::push_particle(const double dt, const Point& up,
   _cell2part[cidx][pidx][0] += up * dt;
 }
 
+void particles::push_particleLPT(const double dt, const Point& up,
+                              const std::size_t cidx, const std::size_t pidx,
+                              const double ForceBalance, const Point& Acceleration)
+{
+  // _cell2part[cidx][pidx][0] += (up * dt) + upLPT;
+  _cell2part[cidx][pidx][0] += dt * up * ForceBalance * Acceleration[1];
+  _cell2part[cidx][pidx][1] = (up * dt) * ForceBalance;
+  // _P->set_property(ci->index(), i, 1, ((up * dt) + upLPT));
+}
+
 void particles::particle_communicator_collect(const std::size_t cidx,
                                               const std::size_t pidx)
 {

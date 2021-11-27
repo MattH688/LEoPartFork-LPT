@@ -370,6 +370,14 @@ Point advect_particles::do_stepLPT(double dt, Point& up, Point& up_1,
   double MicroW = LPTParameters[5];
   double DisableLift = LPTParameters[6];
 
+  // Set up in terms of dt
+  up = up * dt;
+  up_1 = up_1 * dt;
+  Point upLPT = up;
+
+  // In theory, up_1 should be dt related
+  // up = up_1 * dt;
+
   // std::cout << "LPTParameters[6]: " << LPTParameters[6] << std::endl;
 
   // double smallestXY;
@@ -451,18 +459,7 @@ Point advect_particles::do_stepLPT(double dt, Point& up, Point& up_1,
   double reynolds = this->cal_reynolds(
     flowDynamicViscosity, particleDiameter, flowDensity, up, up_1);
 
-  // dt particle relax time is (Drag * ReP) / (FlowDensity * Pdia^2)
-  //   Based upon ANSYS DEFINE_DPM_TIMESTEP which uses the particle relaxation time
-  //   to move particles if the timestep, dT, is too large.
-  //    https://www.afs.enea.it/project/neptunius/docs/fluent/html/udf/node79.htm
 
-  double dt1 = (pow(particleDiameter,2) * flowDensity);
-  dt1 /= (drag * reynolds);
-
-  if (dt > (dt1 / 5.))
-  {
-    dt = (dt1 / 5.);
-  }
 
   // If final dimension (Y (2D) or Z (3D)), apply buoyancy term
   // const double G = 9.8; // Gravity
@@ -487,13 +484,13 @@ Point advect_particles::do_stepLPT(double dt, Point& up, Point& up_1,
     // {
     //   int s = smallestXY / MicroH;
     // }
-    int s = 0;
+    // int s = 0;
     // std::cout << "Distance: " << s << std::endl;
 
     // Calculate Wall lift for LPT particles - Dependent on axis
     double lift = this->cal_WallLiftSq(
       flowDynamicViscosity, particleDiameter, flowDensity, reynolds, ii, up,
-      up1, pPos, gdim, MicroH, MicroW, s);
+      up1, pPos, gdim, MicroH, MicroW, dt);
 
     // Calculate particle velocity within flow in axis direction
     //  Less than 0 (negative) implies particle has changed direction
@@ -539,9 +536,10 @@ Point advect_particles::do_stepLPT(double dt, Point& up, Point& up_1,
     //  v_p^(n+1) = v + (v - v_p)e^(-t/Relax) + Relax*Rp(1 - e^(t/Relax))
     //    Where Rp is the accelerations due to all other forces except
     //      drag forces such as grvaity, rotation effects
-    
+
     // Add drag to particle
-    up[ii] += (particleVelocity) * exp(-dt/ForceBal);
+    upLPT[ii] = (particleVelocity) * exp(-dt/ForceBal);
+    // up[ii] += (particleVelocity) * exp(-dt/ForceBal);
 
     // Calculating the reflection, 'r', to find if it is +ve/-ve movement
     // double d = (-1 * up[ii]); // Need to invert the particle direction
@@ -552,443 +550,30 @@ Point advect_particles::do_stepLPT(double dt, Point& up, Point& up_1,
     // up[ii] -= ((lift) * ForceBal * (exp(-dt/ForceBal) - 1));
 
     // Treat as neutrally bouyant
-    // std::cout << "Lift Force: " << lift << std::endl;
+    
 
     // std::cout << "Particle Velocity w/o lift: " << up[ii] << std::endl;
     std::cout << "Added lift: " << (lift * ForceBal * (exp(-dt/ForceBal) - 1)) << std::endl;
     
     // up[ii] -= lift * 100;
-
-    // std::cout << "(exp(-dT/t) - 1): " << std::abs(exp(-dt/ForceBal) - 1) << std::endl;
-    // std::cout << "Force Balance: " << ForceBal << std::endl;
+    std::cout << "Lift Force: " << lift << std::endl;
+    std::cout << "(exp(-dT/t) - 1): " << std::abs(exp(-dt/ForceBal) - 1) << std::endl;
+    std::cout << "Force Balance: " << ForceBal << std::endl;
 
     // Lift should be positive / negative defined in WallLiftSq function
-    if (DisableLift == 1)
+    if (DisableLift == 0)
     {
-      up[ii] += ((lift * ForceBal) * std::abs(exp(-dt/ForceBal) - 1));
+      upLPT[ii] += ((lift * ForceBal) * std::abs(exp(-dt/ForceBal) - 1));
     } else
     {
       std::cout << "Lift Disabled: " << std::endl;
     }
-    
-    // if (ii == gdim-1) // if Z dimension
-    // {
-    //   up[ii] += (((AddG + lift) * ForceBal) * std::abs(exp(-dt/ForceBal) - 1));
-    // } else // X or Y axis
-    // {
-    //   up[ii] += ((lift * ForceBal) * std::abs(exp(-dt/ForceBal) - 1));
-    // }
-    
-
-    // if (ii == gdim-1) // if Z dimension
-    // { // Add gravity if the last slot
-    //   // up[ii] -= lift * 100;
-    //   // up[ii] -= std::abs((lift) * ForceBal * (exp(-dt/ForceBal) - 1));
-    //   if (up1[ii] > 0) // R positive
-    //   {
-    //     // up[ii] += ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
-    //     up[ii] += std::abs((lift) * ForceBal * (exp(-dt/ForceBal) - 1));
-    //   } else
-    //   {
-    //     up[ii] -= std::abs((lift) * ForceBal * (exp(-dt/ForceBal) - 1));
-    //   }
-
-    // } else
-    // if (ii != gdim-1) // Not Z axis as Z axis calculated in lfit
-    // { // Add only lift
-    //   // Add lift if above 1% uMax to opposite direction (XY)
-    //   if ( (uMax * 0.01) < std::abs(uF) )
-    //   {
-    //     int iP;
-    //     if (ii == 1) // y axis
-    //     {
-    //       iP = 0; // to change x axis
-    //     }
-    //     else // x axis
-    //     {
-    //       iP = 1; // to change y axis
-    //     }
-    //     // Add ratio of X:Y vectors
-    //     double ratioU = 1;
-    //     if (gdim == 3){
-    //       // Where y / y would be 1, therefore a 1:1 ratio
-    //       // ratio = x / y
-    //       ratioU += std::abs(up[0]) / std::abs(up[1]);
-    //     }
-        
-    //     std::cout << "up1 Add lift: " << up1 << std::endl;
-    //     if (up1[ii] > 0) // R positive
-    //     {
-    //       // up[ii] += ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
-    //       up[ii] += std::abs((lift * (std::abs(up[iP]) / ratioU) ) * ForceBal * (exp(-dt/ForceBal) - 1));
-    //     } else // R negative.
-    //     {
-    //       // up[ii] -= ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
-    //       up[ii] -= std::abs((lift * (std::abs(up[iP]) / ratioU) ) * ForceBal * (exp(-dt/ForceBal) - 1));
-    //     }
-    //   }
-    // }
-
-
-    // if (ii == gdim-1)//(ii == gdim-1)
-    // { // Add gravity if the last slot
-    //   std::cout << "G Force: " << AddG << std::endl;
-    //   up[ii] += ((AddG + lift) * ForceBal * (1 - exp(-dt/ForceBal)));
-    // } else
-    // { // Add only lift
-    //   up[ii] += ((lift) * ForceBal * (1 - exp(-dt/ForceBal)));
-    // }
-    // std::cout << "P Velocity1: " << up[ii] << std::endl;
-
-    // If using Euler implicit discretization - Appearas to break
-    // up[ii] = ( up_1[ii] + dt * ( (lift) + (up[ii] / ForceBal)  ) ) / ( 1 + (dt / ForceBal));
   }
   
-  // if (LPTVecT != 1){
-  //   double upNorm = up.norm();
-  //   std::cout << "UP norm: " << upNorm << std::endl;
-  //   for (unsigned int ii = 0; ii < gdim; ii++){
-  //       // Needs to be the vector magnitude using Pythagorean theorem
-  //       //  which is the point.norm() function
-  //       // The PartVelAdj is pulled from top level using LPTParameter[6]
-  //       //      - Often set to 2-10% channel distance velocity
-  //       //          using the parabolic curve algorithm.
-  //       //      Example == 10% channel distance is 36% velocity magnitude
-  //       //                 5% channel distance is 19%
-  //       //                 2.5% channel distance is 9.75%
-  //       up[ii] = up[ii] * ( LPTVecT / upNorm);
-  //   }
-  // }
+  std::cout << "Flow Velocity AF: " << upLPT << std::endl;
 
-
-  // up[2-1] -= AddG;
-  // up[gdim-1] -= AddG;
-  // std::cout << "Gravity: " << AddG << std::endl;
-  // up[gdim-1] -= AddG * Relax * (1 - exp(-dt/ForceBal))
-
-
-  //up[gdim-1] -= G * ((particleDensity - flowDensity)/ particleDensity);
-
-  // Feed adjusted particle velocity back into the "do_step" algorithm
-  //    by applyiong the change to "up" vector
-
-  
-  std::cout << "Flow Velocity AF: " << up << std::endl;
-
-  return up;
+  return upLPT;
 }
-
-// //-----------------------------------------------------------------------------
-// // float prob_prop[10] = {DynVisc, Density, P.Diameter}
-// // - Add old particle velocity to particle slot 2
-// void advect_particles::do_stepLPT(double dt,
-//   Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters) 
-// {
-//   init_weights();
-
-//   // Initial setup
-//   const Mesh* mesh = _P->mesh();
-//   const MPI_Comm mpi_comm = mesh->mpi_comm();
-//   const std::size_t gdim = mesh->geometry().dim();
-//   const std::size_t tdim = mesh->topology().dim();
-
-//   // std::cout << "LPTParameters: " << LPTParameters << std::endl;
-
-//   // Set up LPT parametersLPTParameters = falsers[4]; // m Microfluidic Height
-//   double MicroW = LPTParameters[5]; // m Microfluidic Width
-
-//   // double particleDiameter = 1e-5; // m - 10 um
-//   // double particleDensity = 1050; // Kg/m3 Rough polystyrene density
-//   // double flowDensity = 998.2; // Kg/m3 Water density at 21C
-//   // double flowDynamicViscosity= 1.003e-3; // Kg/m.s Water kinematic viscosity
-//   // double MicroH = 0.00005; // m Microfluidic Height
-//   // double MicroW = 0.0001; // m Microfluidic Width
-
-//   // For MPI distributed processes
-//   std::size_t num_processes = MPI::size(mpi_comm);
-
-//   // Needed for local reloc
-//   std::vector<std::array<std::size_t, 3>> reloc;
-
-//   const Function& uh_step = uh(0, dt);
-
-//   for (CellIterator ci(*mesh); !ci.end(); ++ci)
-//   {
-//     std::vector<double> coeffs;
-//     // Restrict once per cell, once per timestep
-//     Utils::return_expansion_coeffs(coeffs, *ci, &uh_step);
-
-//     // Loop over particles in cell
-//     for (unsigned int i = 0; i < _P->num_cell_particles(ci->index()); i++)
-//     {
-//       // FIXME: It might be better to use 'pointer iterator here' as we need to
-//       // erase from cell2part vector now we decrement iterator int when needed
-
-//       // basis_mat (
-//       Eigen::MatrixXd basis_mat(_value_size_loc, _space_dimension);
-//       Utils::return_basis_matrix(basis_mat.data(), _P->x(ci->index(), i), *ci,
-//                                  _element);
-
-
-//       // Create storage for vectors
-//       Eigen::Map<Eigen::VectorXd> exp_coeffs(coeffs.data(), _space_dimension);
-//       // std::cout << "exp_coeffs: " << exp_coeffs << std::endl;
-//       // std::cout << "basis_mat: " << basis_mat << std::endl;
-      
-//       // Compute value at point using expansion coeffs and basis matrix, first
-//       // convert to Eigen matrix
-//       //    exp_coeffs = reference velocities from mesh / cell
-//       //    basis_mat = particle equation
-//       Eigen::VectorXd u_p = basis_mat * (exp_coeffs); 
-//       // std::cout << "u_p: " << u_p << std::endl;
-      
-//       // Replace above with something like...
-//       // f = Function(V)
-//       // p = Point()
-//       // Mesh Value at point = f(p)
-      
-//       // Point up_p = (_P->property(ci->index(), i, 0));
-//       // double up_v = uh_step(up_p);
-//        // std::cout << "u_p.data(): " << u_p.data() << std::endl;
-      
-//       // Convert velocity to point
-//       //    gdim = 2 or 3 dimensions
-//       //    u_p.data() appears to be a complex array for vectors?
-//       Point up(gdim, u_p.data());
-
-//       // Point up1(2, u_p.data());
-//       // std::cout << "gdim: " << gdim << std::endl;
-//       std::cout << "Flow Velocity B4: " << up << std::endl;
-//       // std::cout << "Flow up: " << up_v << std::endl;
-//       // std::cout << "Flow Velocity1: " << up1 << std::endl;
-
-//       // Lagrangian particle function based on Drag and bouyancy
-//       //
-//       // 1) Access prior particle velocity
-//       // 2) Get current mesh velocity
-//       // 3) Calculate lagrangian movement
-
-//       // Previous velocity point
-//       Point up_1 = (_P->property(ci->index(), i, 1));
-//       std::cout << "P Velocity: " << up_1 << std::endl;
-//       // Point up_0 = (_P->property(ci->index(), i, 0));
-
-//       // Calculate drag, relax and Reynolds for LPT particles
-//       double drag = this->cal_drag( 
-//         flowDynamicViscosity, particleDiameter, flowDensity, up, up_1);
-//       double relax = this->cal_relax(
-//         flowDynamicViscosity, particleDiameter, particleDensity);
-//       double reynolds = this->cal_reynolds(
-//         flowDynamicViscosity, particleDiameter, flowDensity, up, up_1);
-
-//       // Loop particle values for LPT
-//       for (unsigned int ii = 0; ii < gdim; ii++)
-//       {
-//         // Calculate Wall lift for LPT particles - Dependent on axis
-//         double lift = this->cal_WallLiftSq(
-//           flowDynamicViscosity, particleDiameter, flowDensity, ii, up,
-//           up_1, MicroH, MicroW);
-
-//         // Calculate particle velocity within flow in axis direction
-//         // Use current and prior position to calculate P.velocity
-//         double particleVelocity = (up[ii] - up_1[ii]);
-//         // _P->set_property(ci->index(), i, 1, up);
-//         std::cout << "particleAcceleration: " << particleVelocity << std::endl;
-//         // Calculating Force Balance term (drag and relax)
-//         double ForceBal = ((drag * reynolds) / 24);
-//         std::cout << "ForceBal1: " << ForceBal << std::endl;
-//         ForceBal *= (relax);
-//         std::cout << "ForceBal2: " << ForceBal << std::endl;
-//         ForceBal *= particleVelocity;
-//         std::cout << "ForceBal3: " << ForceBal << std::endl;
-//         // Calculate lift (Based upon microfluidic walls)
-//         ForceBal += lift;
-//         // Set particleVelcity to up[ii]
-//         up[ii] = ForceBal;
-        
-//         // std::cout << "P Velocity1: " << up[ii] << std::endl;
-//       }
-      
-
-//       // If final dimension (Y (2D) or Z (3D)), apply buoyancy term
-//       const double G = 9.8; // Gravity
-//       double AddG = (particleDensity - flowDensity);
-//       AddG *= G;
-//       AddG /= particleDensity;
-
-//       // up[2-1] -= AddG;
-//       up[gdim-1] -= AddG;
-//       //up[gdim-1] -= G * ((particleDensity - flowDensity)/ particleDensity);
-
-//       // Feed adjusted particle velocity back into the "do_step" algorithm
-//       //    by applyiong the change to "up" vector
-
-//       std::size_t cidx_recv = ci->index();
-//       double dt_rem = dt;
-
-//       std::cout << "Flow Velocity AF: " << up << std::endl;
-
-//       // Store previous particle velocity in slot 2
-//       //    Important to store here once rebound applied
-//       // std::cout << "up: " << (up) << std::endl;
-//       _P->set_property(ci->index(), i, 1, up);
-      
-//       // Set current position to old slot before movement
-//       // _P->set_property(ci->index(), i, 1, (_P->property(ci->index(), i, 0)));
-//       std::cout << "up_1 Store: " << (_P->property(ci->index(), i, 1)) << std::endl;
-
-//       while (dt_rem > 1E-15)
-//       {
-//         // Returns facet which is intersected and the time it takes to do so
-//         std::tuple<std::size_t, double> intersect_info
-//             = time2intersect(cidx_recv, dt_rem, _P->x(ci->index(), i), up);
-//         const std::size_t target_facet = std::get<0>(intersect_info);
-//         const double dt_int = std::get<1>(intersect_info);
-
-//         if (target_facet == std::numeric_limits<unsigned int>::max())
-//         {
-//           // Then remain within cell, finish time step
-//           _P->push_particle(dt_rem, up, ci->index(), i);
-//           dt_rem = 0.0;
-
-//           if (bounded_domain_active)
-//             bounded_domain_violation(ci->index(), i);
-
-//           // TODO: if step == last tstep: update particle position old to most
-//           // recent value If cidx_recv != ci->index(), particles crossed facet
-//           // and hence need to be relocated
-//           if (cidx_recv != ci->index())
-//             reloc.push_back({ci->index(), i, cidx_recv});
-//         }
-//         else
-//         {
-//           const Facet f(*mesh, target_facet);
-//           const unsigned int* facet_cells = f.entities(tdim);
-
-//           // Two options: if internal (==2) else if boundary
-//           if (f.num_entities(tdim) == 2)
-//           {
-//             // Then we cross facet which has a neighboring cell
-//             _P->push_particle(dt_int, up, ci->index(), i);
-
-//             cidx_recv = (facet_cells[0] == cidx_recv) ? facet_cells[1]
-//                                                       : facet_cells[0];
-
-//             // Update remaining time
-//             dt_rem -= dt_int;
-//             if (dt_rem < 1E-15)
-//             {
-//               // Then terminate
-//               dt_rem = 0.0;
-//               if (cidx_recv != ci->index())
-//                 reloc.push_back({ci->index(), i, cidx_recv});
-//             }
-//           }
-//           else if (f.num_entities(tdim) == 1)
-//           {
-//             const facet_t ftype = facets_info[target_facet].type;
-//             // Then we hit a boundary, but which type?
-//             if (f.num_global_entities(tdim) == 2)
-//             {
-//               assert(ftype == facet_t::internal);
-//               // Then it is an internal boundary
-//               // Do a full push
-//               _P->push_particle(dt_rem, up, ci->index(), i);
-//               dt_rem *= 0.;
-
-//               if (pbc_active)
-//                 pbc_limits_violation(ci->index(),
-//                                      i); // Check on sequence crossing internal
-//                                          // bc -> crossing periodic bc
-
-//               if (bounded_domain_active)
-//                 bounded_domain_violation(ci->index(), i);
-
-//               // TODO: do same for closed bcs to handle (unlikely event):
-//               // internal bc-> closed bc
-
-//               // Go to the particle communicator
-//               reloc.push_back(
-//                   {ci->index(), i, std::numeric_limits<unsigned int>::max()});
-//             }
-//             else if (ftype == facet_t::open)
-//             {
-//               // Particle leaLPTParametersk around: do a full push to make sure that
-//               // particle is pushed outside domain
-//               _P->push_particle(dt_rem, up, ci->index(), i);
-
-//               // Then push back to relocate
-//               reloc.push_back(
-//                   {ci->index(), i, std::numeric_limits<unsigned int>::max()});
-//               dt_rem = 0.0;
-//             }
-//             else if (ftype == facet_t::closed)
-//             {
-//               // Closed BC
-//               apply_closed_bc(dt_int, up, ci->index(), i, target_facet);
-//               dt_rem -= dt_int;
-//             }
-//             else if (ftype == facet_t::periodic)
-//             {
-//               // Then periodic bc
-//               apply_periodic_bc(dt_rem, up, ci->index(), i, target_facet);
-//               if (num_processes > 1) // Behavior in parallel
-//                 reloc.push_back(
-//                     {ci->index(), i, std::numeric_limits<unsigned int>::max()});
-//               else
-//               {
-//                 // Behavior in serial
-//                 std::size_t cell_id = _P->mesh()
-//                                           ->bounding_box_tree()
-//                                           ->compute_first_entity_collision(
-//                                               _P->x(ci->index(), i));
-//                 reloc.push_back({ci->index(), i, cell_id});
-//               }
-//               dt_rem = 0.0;
-//             }
-//             else if (ftype == facet_t::bounded)
-//             {
-//               std::cout << "Hit bounded facet " << std::endl;
-//               // Then bounded bc
-//               apply_bounded_domain_bc(dt_rem, up, ci->index(), i, target_facet);
-
-//               if (num_processes > 1) // Behavior in parallel
-//                 reloc.push_back(
-//                     {ci->index(), i, std::numeric_limits<unsigned int>::max()});
-//               else
-//               {
-//                 // Behavior in serial
-//                 std::size_t cell_id = _P->mesh()
-//                                           ->bounding_box_tree()
-//                                           ->compute_first_entity_collision(
-//                                               _P->x(ci->index(), i));
-//                 reloc.push_back({ci->index(), i, cell_id});
-//               }
-//               dt_rem = 0.0;
-//             }
-//             else
-//             {
-//               dolfin_error("advect_particles.cpp::do_step",
-//                            "encountered unknown boundary",
-//                            "Only internal boundaries implemented yet");
-//             }
-//           }
-//           else
-//           {
-//             dolfin_error("advect_particles.cpp::do_step",
-//                          "found incorrect number of facets (<1 or > 2)",
-//                          "Unknown");
-//           }
-
-//         } // end else
-//       }   // end while
-//     }     // end for
-//   }       // end for
-
-//   // Relocate local and global
-//   _P->relocate(reloc);
-// }
-
 
 //-----------------------------------------------------------------------------
 double advect_particles::cal_drag(double dynVisc, 
@@ -1021,6 +606,48 @@ double advect_particles::cal_drag(double dynVisc,
   }
 
 }
+
+//-----------------------------------------------------------------------------
+double advect_particles::DEFINE_DPM_TIMESTEP(double dt, Point& up, Point& up_1,
+  Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters)
+  // dt particle relax time is (Drag * ReP) / (FlowDensity * Pdia^2)
+  //   Based upon ANSYS DEFINE_DPM_TIMESTEP which uses the particle relaxation time
+  //   to move particles if the timestep, dT, is too large.
+  //    https://www.afs.enea.it/project/neptunius/docs/fluent/html/udf/node79.htm
+{
+  double particleDiameter = LPTParameters[0];
+  double particleDensity = LPTParameters[1];
+  double flowDensity = LPTParameters[2];
+  double flowDynamicViscosity = LPTParameters[3];
+  // double MicroH = LPTParameters[4];
+  // double MicroW = LPTParameters[5];
+  double DisableLift = LPTParameters[6];
+
+  if (DisableLift == 0)
+  {
+    // Calculate drag, relax and Reynolds for LPT particles
+    double drag = cal_drag( 
+      flowDynamicViscosity, particleDiameter, flowDensity, up, up_1);
+    // double relax = this->cal_relax(
+    //   flowDynamicViscosity, particleDiameter, particleDensity);
+    // double reynolds = cal_reynolds(
+    //   flowDynamicViscosity, particleDiameter, flowDensity, up, up_1);
+
+
+    double dt1 = (pow(particleDiameter,2) * particleDensity);
+    dt1 /= (drag * flowDynamicViscosity); //(drag * reynolds);
+
+    std::cout << "dt: " << (dt) << std::endl;
+    if (dt > (dt1 / 5.))
+    {
+      dt = (dt1 / 5.);
+      std::cout << "dT (dt1/5.): " << dt << std::endl;
+    }
+  }
+
+  return dt;
+}
+
 
 //-----------------------------------------------------------------------------
 double advect_particles::cal_relax(double dynVisc, double diameter, double density)
@@ -1079,7 +706,7 @@ double advect_particles::cal_reynolds(double dynVisc,
 double advect_particles::cal_WallLiftSq(double dynVisc, 
   double particleDiameter, double flowDensity, double reynolds,
   int i, Point& up, Point& up1, Point& pPos, int gdim,
-  double h, double w, int s)
+  double h, double w, double dt)
 {
 
   // Initialise G1 and G2 for lift constants
@@ -1224,7 +851,7 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   // double H = (w * h);
   // H *= 2;
   // H /= (w + h);
-  double H = 0.0005; // 500 um width
+  double H = w; // 500 um width
 
   // Calculate fl co-efficient based on H^2 / ( pd^2 * sqrtroot(Reynolds))
   // double Fl_temp = pow(particleDiameter,2);
@@ -1256,7 +883,7 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   // Flnl *= -1;
 
 
-  double uMax = 0.8; // Needs to be imported from problem parameters
+  double uMax = 0.8 * dt; // Needs to be imported from problem parameters
 
   // 4.0 * Umax * x[1] * (0.41 - x[1]) / pow(0.41, 2)
   // up[ii] = up[ii] * ( LPTVecT / upNorm);
@@ -1270,6 +897,8 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   // uNorm1 is the centre line of the channel for velocities, expected to be
   //    parabolic and avoid issues where s can be small on XY axis when 
   //    particle is centred.
+  int s = 0;
+
   if (s == 0)
   {
     s = (((H/2 - H/2 * sqrt(1 - (1/uMax) * uNorm1)) / H) * 100);
@@ -1277,7 +906,7 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
 
   // If Z axis, use Z axis height and P position
   //  Assumed is Z is a constant height
-  if (i == 2)
+  if (i == gdim-1)
   {
     // Point pPos = _P->x(ci->index(), 1);
     // s = ( Z particle position minus zMin ) / Zrange
@@ -1287,8 +916,8 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
     s = ((pPos[2] - 0.0110585) / 0.00016) * 100;
     // Set Z axis to something reasonable?
     // uNorm = std::abs(up[2]); // uMax * 0.01;//std::abs(up[2]);
-    uMax = 0.1; // Bouyancy acting upon particle
-    H = 0.00016; // Set Z to boundary height, not hydraulic
+    uMax = 0.1 * dt; // Bouyancy acting upon particle
+    H = h; // Set Z to boundary height, not hydraulic
   }
 
   // Shear rate - Based on velocity norm at particle position
@@ -1572,9 +1201,35 @@ void advect_particles::do_step(double dt,
           up1[iI] *= -1;
         }
       }
+      Point upLPT = up;
+      // up = do_stepLPT(dt, up, up_1, up1, LPTParameters);
+      dt = DEFINE_DPM_TIMESTEP(dt, up, up_1, LPTParameters);
       
+      // set dT to 1 second as up is 1 sec
+      // up = do_stepLPT(dt, up, up_1, up1, pPos1, LPTParameters);
 
-      up = do_stepLPT(dt, up, up_1, up1, pPos1, LPTParameters);
+      double drag = this->cal_drag( 
+        LPTParameters[3], LPTParameters[0], LPTParameters[2], up, up_1);
+      double relax = this->cal_relax(
+        LPTParameters[3], LPTParameters[0], LPTParameters[1]);
+
+      // Cal Particle Reynolds
+      double reynolds = cal_reynolds(LPTParameters[3],
+        LPTParameters[0], LPTParameters[2], up, up_1);
+
+      // Drag force balance for LPT
+      double ForceBalance = ((drag * reynolds) / 24);
+      ForceBalance *= (relax);
+
+      Point Acceleration = up;
+
+      for (std::size_t iI = 0; (iI < gdim); iI++)
+      {
+        // Accelerations due to all other forces except drag force
+        Acceleration[iI] = this->cal_WallLiftSq(LPTParameters[3],
+          LPTParameters[0], LPTParameters[2], reynolds, iI, up, up1,
+          pPos, gdim, LPTParameters[4], LPTParameters[5], 1);
+      }
 
       // Store previous particle velocity in slot 2 
       //    Important to store here once rebound applied
@@ -1601,6 +1256,9 @@ void advect_particles::do_step(double dt,
         {
           // Then remain within cell, finish time step
           _P->push_particle(dt_rem, up, ci->index(), i);
+          // _P->push_particleLPT(dt_rem, up, ci->index(), i, upLPT);
+          // _P->push_particleLPT(dt_rem, up, ci->index(), i, ForceBalance,
+          //   Acceleration);
           dt_rem = 0.0;
 
           if (bounded_domain_active)
@@ -1646,6 +1304,8 @@ void advect_particles::do_step(double dt,
               // Then it is an internal boundary
               // Do a full push
               _P->push_particle(dt_rem, up, ci->index(), i);
+              // _P->push_particleLPT(dt_rem, up, ci->index(), i, ForceBalance,
+              //   Acceleration);
               dt_rem *= 0.;
 
               if (pbc_active)
@@ -1673,6 +1333,8 @@ void advect_particles::do_step(double dt,
               // Issue 12 Work around: do a full push to make sure that
               // particle is pushed outside domain
               _P->push_particle(dt_rem, up, ci->index(), i);
+              // _P->push_particleLPT(dt_rem, up, ci->index(), i, ForceBalance,
+              //   Acceleration);
 
               // Then push back to relocate
               reloc.push_back(
@@ -2491,6 +2153,307 @@ void advect_particles::do_substep(
   } // end_while
 }
 //-----------------------------------------------------------------------------
+void advect_particles::do_substepLPT(
+    double dt, Point& up, const std::size_t cidx, std::size_t pidx,
+    std::size_t& step, const std::size_t num_steps,
+    const std::size_t xp0_idx, const std::size_t up0_idx,
+    std::vector<std::array<std::size_t, 3>>& reloc, double ForceBalance,
+    Point& Acceleration)
+
+    // void advect_particles::do_substep(
+    // double dt, Point& up, const std::size_t cidx, std::size_t pidx,
+    // std::size_t& step, const std::size_t num_steps,
+    // const std::size_t xp0_idx, const std::size_t up0_idx,
+    // std::vector<std::array<std::size_t, 3>>& reloc)
+{
+  double dt_rem = dt;
+
+  const Mesh* mesh = _P->mesh();
+  const std::size_t mpi_size = MPI::size(mesh->mpi_comm());
+  const std::size_t gdim = mesh->geometry().dim();
+  const std::size_t tdim = mesh->topology().dim();
+
+  std::size_t cidx_recv = std::numeric_limits<unsigned int>::max();
+
+  if (step == 0)
+    cidx_recv = cidx;
+  else
+  {
+    // The reason for doing this step is:
+    // for the multistep (RK) schemes, the carried old position may not be the
+    // same as the cell where the particle lives newest position is always
+    // carried
+    // TODO: Can we think of smarter implementation?
+    cidx_recv = mesh->bounding_box_tree()->compute_first_entity_collision(
+        _P->x(cidx, pidx));
+
+    // One alternative might be:
+    // Cell cell(*(_P->_mesh), cidx);
+    // bool contain = cell.contains(_P->_cell2part[cidx][pidx][0])
+    // If true  cidx_recv = cidx; and continue
+    // if not: do entity collision
+
+    // FIXME: this approach is robust for the internal points multistep schemes,
+    // but what about multistage schemes and near closed/periodic bc's?
+    if (cidx_recv == std::numeric_limits<unsigned int>::max())
+    {
+      _P->push_particleLPT(dt_rem, up, cidx, pidx, ForceBalance, Acceleration);
+      if (pbc_active)
+        pbc_limits_violation(cidx, pidx);
+
+      if (bounded_domain_active)
+        bounded_domain_violation(cidx, pidx);
+
+      if (step == (num_steps - 1))
+      {
+        // Copy current position to old position
+        // so something like
+        _P->set_property(cidx, pidx, xp0_idx, _P->x(cidx, pidx));
+      }
+      // Apparently, this always lead to a communicate, but why?
+      reloc.push_back({cidx, pidx, std::numeric_limits<unsigned int>::max()});
+      return; // Stop right here
+    }
+  }
+
+  // std::cout << "xp0_idx: " << xp0_idx << std::endl;
+
+  bool hit_cbc = false; // Hit closed boundary condition (?!)
+  while (dt_rem > 1E-15)
+  {
+    // Returns facet which is intersected and the time it takes to do so
+    std::tuple<std::size_t, double> intersect_info
+        = time2intersect(cidx_recv, dt_rem, _P->x(cidx, pidx), up);
+    // std::cout << "time2intersect: " << std::get<0>(intersect_info) << std::endl;
+    // std::cout << "time2intersect: " << std::get<1>(intersect_info) << std::endl;
+    const std::size_t target_facet = std::get<0>(intersect_info);
+    const double dt_int = std::get<1>(intersect_info);
+
+    if (target_facet == std::numeric_limits<unsigned int>::max())
+    {
+      // Then remain within cell, finish time step
+      _P->push_particleLPT(dt_rem, up, cidx, pidx, ForceBalance, Acceleration);
+      dt_rem = 0.0;
+
+      if (bounded_domain_active)
+        bounded_domain_violation(cidx, pidx);
+
+      if (step == (num_steps - 1))
+        // Copy current position to old position
+        _P->set_property(cidx, pidx, xp0_idx, _P->x(cidx, pidx));
+
+      // If cidx_recv != ci->index(), particles crossed facet and hence need to
+      // be relocated
+      if (cidx_recv != cidx)
+        reloc.push_back({cidx, pidx, cidx_recv});
+    }
+    else
+    {
+      Facet f(*mesh, target_facet);
+      const unsigned int* fcells = f.entities(tdim);
+
+      // Two options: if internal (==2) else if boundary
+      if (f.num_entities(tdim) == 2)
+      {
+        // Then we cross facet which has a neighboring cell
+        _P->push_particleLPT(dt_rem, up, cidx, pidx, ForceBalance, Acceleration);
+
+        // Update index of receiving cell
+        cidx_recv = (fcells[0] == cidx_recv) ? fcells[1] : fcells[0];
+
+        // Update remaining time
+        dt_rem -= dt_int;
+        if (dt_rem < 1E-15)
+        {
+          // Then terminate
+          dt_rem *= 0.;
+          // Copy current position to old position
+          if (step == (num_steps - 1))
+            _P->push_particleLPT(dt_rem, up, cidx, pidx, ForceBalance, Acceleration);
+
+          if (cidx_recv != cidx)
+            reloc.push_back({cidx, pidx, cidx_recv});
+        }
+      }
+      else if (f.num_entities(tdim) == 1)
+      {
+        const facet_t ftype = facets_info[target_facet].type;
+        // Then we hit a boundary, but which type?
+        if (f.num_global_entities(tdim) == 2)
+        { // Internal boundary between processes
+          assert(ftype == facet_t::internal);
+          _P->push_particleLPT(dt_rem, up, cidx, pidx, ForceBalance, Acceleration);
+          dt_rem = 0.0;
+
+          // Updates particle position if pbc_limits is violated
+          if (pbc_active)
+            pbc_limits_violation(cidx, pidx);
+
+          if (bounded_domain_active)
+            bounded_domain_violation(cidx, pidx);
+
+          // Copy current position to old position
+          if (step == (num_steps - 1) || hit_cbc)
+            _P->set_property(cidx, pidx, xp0_idx, _P->x(cidx, pidx));
+
+          reloc.push_back(
+              {cidx, pidx, std::numeric_limits<unsigned int>::max()});
+
+          return; // Stop right here
+        }
+        else if (ftype == facet_t::open)
+        {
+          // Particle leaves the domain. Relocate to another process (particle
+          // will be discarded)
+
+          // Issue 12 work around: do full push to push particle outside
+          // domain
+          _P->push_particleLPT(dt_rem, up, cidx, pidx, ForceBalance, Acceleration);
+
+          // Then push back to relocate
+          reloc.push_back(
+              {cidx, pidx, std::numeric_limits<unsigned int>::max()});
+          dt_rem = 0.0;
+        }
+        else if (ftype == facet_t::closed)
+        {
+          apply_closed_bc(dt_int, up, cidx, pidx, target_facet);
+          dt_rem -= dt_int;
+
+          // // TODO: CHECK THIS
+          // dt_rem
+          //     += (1. - dti[step]) * (dt / dti[step]); // Make timestep complete
+          // // If we hit a closed bc, modify following, probably is first order:
+          // // dt_rem = 0.0;
+
+          // TODO: UPDATE AS PARTICLE!
+          std::vector<double> dummy_vel(gdim,
+                                        std::numeric_limits<double>::max());
+          _P->set_property(cidx, pidx, up0_idx, Point(gdim, dummy_vel.data()));
+          // std::cout << "up0_idx: " << xp0_idx << std::endl;
+
+          std::tuple<std::size_t, double> intersect_info
+              = time2intersect(cidx_recv, dt_rem, _P->x(cidx, pidx), up);
+          // std::cout << "time2intersect: " << std::get<0>(intersect_info) << std::endl;
+          // std::cout << "time2intersect: " << std::get<1>(intersect_info) << std::endl;
+          // const std::size_t target_facet = std::get<0>(intersect_info);
+          const double dt_int1 = std::get<1>(intersect_info);
+
+          // Set tiem remaining to the time to hit next cell using up(reflected)
+          dt_rem = dt_int1;
+          // Push particle to the next cell
+          _P->push_particleLPT(dt_rem, up, cidx, pidx, ForceBalance, Acceleration);
+          // Set step to max iteration to stop iterative (RK methods)
+          step = num_steps;
+
+          // Store rebound vector replacing current particle velocity#
+          //    Currently inside "apply_closed_bc"
+          // Point up(gdim, u_p.data());
+          //_P->set_property(cidx, pidx, 1, Point(gdim, dummy_vel.data()) );
+
+          ///// Testing using the internal movement commands
+
+          // // Then we cross facet which has a neighboring cell
+          // _P->push_particle(dt_int, up, cidx, pidx);
+
+          // // Update index of receiving cell
+          // cidx_recv = (fcells[0] == cidx_recv) ? fcells[1] : fcells[0];
+
+
+          // // Then terminate
+          // dt_rem *= 0.;
+          // // Copy current position to old position
+          // if (step == (num_steps - 1))
+          //   _P->set_property(cidx, pidx, xp0_idx, _P->x(cidx, pidx));
+
+          // if (cidx_recv != cidx)
+          //   reloc.push_back({cidx, pidx, cidx_recv});
+
+          // // Update remaining time
+          // dt_rem -= dt_int;
+          // if (dt_rem < 1E-15)
+          // {
+          //   // Then terminate
+          //   dt_rem *= 0.;
+          //   // Copy current position to old position
+          //   if (step == (num_steps - 1))
+          //     _P->set_property(cidx, pidx, xp0_idx, _P->x(cidx, pidx));
+
+          //   if (cidx_recv != cidx)
+          //     reloc.push_back({cidx, pidx, cidx_recv});
+          // }
+          
+          hit_cbc = true;
+        }
+        else if (ftype == facet_t::periodic)
+        {
+          // TODO: add support for periodic bcs
+          apply_periodic_bc(dt_rem, up, cidx, pidx, target_facet);
+
+          // Copy current position to old position
+          if (step == (num_steps - 1))
+            _P->set_property(cidx, pidx, xp0_idx, _P->x(cidx, pidx));
+
+          // Behavior in parallel
+          // Always do a global push
+          if (mpi_size > 1)
+          {
+            reloc.push_back(
+                {cidx, pidx, std::numeric_limits<unsigned int>::max()});
+          }
+          else
+          {
+            // Behavior in serial
+            // TODO: call particle locate
+            std::size_t cell_id
+                = mesh->bounding_box_tree()->compute_first_entity_collision(
+                    _P->x(cidx, pidx));
+
+            reloc.push_back({cidx, pidx, cell_id});
+          }
+
+          dt_rem = 0.0;
+        }
+        else if (ftype == facet_t::bounded)
+        {
+          // Then bounded bc
+          apply_bounded_domain_bc(dt_rem, up, cidx, pidx, target_facet);
+
+          // Copy current position to old position
+          if (step == (num_steps - 1))
+            _P->set_property(cidx, pidx, xp0_idx, _P->x(cidx, pidx));
+
+          if (mpi_size > 1) // Behavior in parallel
+            reloc.push_back(
+                {cidx, pidx, std::numeric_limits<unsigned int>::max()});
+          else
+          {
+            // Behavior in serial
+            std::size_t cell_id = _P->mesh()
+                                      ->bounding_box_tree()
+                                      ->compute_first_entity_collision(
+                                          _P->x(cidx, pidx));
+            reloc.push_back({cidx, pidx, cell_id});
+          }
+          dt_rem = 0.0;
+        }
+        else
+        {
+          dolfin_error("advect_particles.cpp::do_step",
+                       "encountered unknown boundary",
+                       "Only internal boundaries implemented yet");
+        }
+      }
+      else
+      {
+        dolfin_error("advect_particles.cpp::do_step",
+                     "found incorrect number of facets (<1 or > 2)", "Unknown");
+      }
+    }
+  } // end_while
+}
+
+//-----------------------------------------------------------------------------
 advect_particles::~advect_particles() {}
 //
 //-----------------------------------------------------------------------------
@@ -2670,10 +2633,34 @@ void advect_rk2::do_step(double dt,
           }
         }
         
-
         // up = do_stepLPT(dt, up, up_1, up1, LPTParameters);
-        up = do_stepLPT(dt, up, up_1, up1, pPos1, LPTParameters);
+        dt = DEFINE_DPM_TIMESTEP(dt, up, up_1, LPTParameters);
+        
+        // set dT to 1 second as up is 1 sec
+        // up = do_stepLPT(dt, up, up_1, up1, pPos1, LPTParameters);
 
+        double drag = this->cal_drag( 
+          LPTParameters[3], LPTParameters[0], LPTParameters[2], up, up_1);
+        double relax = this->cal_relax(
+          LPTParameters[3], LPTParameters[0], LPTParameters[1]);
+
+        // Cal Particle Reynolds
+        double reynolds = cal_reynolds(LPTParameters[3],
+          LPTParameters[0], LPTParameters[2], up, up_1);
+
+        // Drag force balance for LPT
+        double ForceBalance = ((drag * reynolds) / 24);
+        ForceBalance *= (relax);
+
+        Point Acceleration = up;
+
+        for (std::size_t iI = 0; (iI < gdim); iI++)
+        {
+          // Accelerations due to all other forces except drag force
+          Acceleration[iI] = this->cal_WallLiftSq(LPTParameters[3],
+            LPTParameters[0], LPTParameters[2], reynolds, iI, up, up1,
+            pPos, gdim, LPTParameters[4], LPTParameters[5], 1);
+        }
         // Store previous particle velocity in slot 2 
         //    Important to store here once rebound applied
         // std::cout << "up: " << (up) << std::endl;
@@ -2683,9 +2670,6 @@ void advect_rk2::do_step(double dt,
         // _P->set_property(ci->index(), i, 1, (_P->property(ci->index(), i, 0)));
         std::cout << "up_1 Store: " << (_P->property(ci->index(), i, 1)) << std::endl;
     
-
-
-
         if (step == 0)
           _P->set_property(ci->index(), i, up0_idx, up);
         else
@@ -2704,8 +2688,10 @@ void advect_rk2::do_step(double dt,
                            _P->property(ci->index(), i, xp0_idx));
 
         // Do substep
-        do_substep(dt, up, ci->index(), i, step, num_substeps, xp0_idx, up0_idx,
-                   reloc);
+        // do_substep(dt, up, ci->index(), i, step, num_substeps, xp0_idx, up0_idx,
+        //            reloc);
+        do_substepLPT(dt * dti[step], up, ci->index(), i, step, num_substeps,
+                   xp0_idx, up0_idx, reloc, ForceBalance, Acceleration);
       }
     }
 
@@ -2898,17 +2884,38 @@ void advect_rk3::do_step(double dt,
           }
         }
 
-        // up = do_stepLPT(dt, up, up_1, up1, LPTParameters);
-        up = do_stepLPT(dt, up, up_1, up1, pPos1, LPTParameters);
 
+        // up = do_stepLPT(dt, up, up_1, up1, LPTParameters);
+        dt = DEFINE_DPM_TIMESTEP(dt, up, up_1, LPTParameters);
         
-        // Set current position to old slot before movement
-        // _P->set_property(ci->index(), i, 1, (_P->property(ci->index(), i, 0)));
-        // std::cout << "up_1 Store: " << (_P->property(ci->index(), i, 1)) << std::endl;
+        // set dT to 1 second as up is 1 sec
+        // up = do_stepLPT(dt, up, up_1, up1, pPos1, LPTParameters);
+
+        double drag = this->cal_drag( 
+          LPTParameters[3], LPTParameters[0], LPTParameters[2], up, up_1);
+        double relax = this->cal_relax(
+          LPTParameters[3], LPTParameters[0], LPTParameters[1]);
+
+        // Cal Particle Reynolds
+        double reynolds = cal_reynolds(LPTParameters[3],
+          LPTParameters[0], LPTParameters[2], up, up_1);
+
+        // Drag force balance for LPT
+        double ForceBalance = ((drag * reynolds) / 24);
+        ForceBalance *= (relax);
+
+        Point Acceleration = up;
+
+        for (std::size_t iI = 0; (iI < gdim); iI++)
+        {
+          // Accelerations due to all other forces except drag force
+          Acceleration[iI] = this->cal_WallLiftSq(LPTParameters[3],
+            LPTParameters[0], LPTParameters[2], reynolds, iI, up, up1,
+            pPos, gdim, LPTParameters[4], LPTParameters[5], 1);
+        }
+
         std::cout << "P Velocity AF: " << up << std::endl;
     
-
-
         // Then reset position to the old position
         _P->set_property(ci->index(), i, 0,
                          _P->property(ci->index(), i, xp0_idx));
@@ -2934,9 +2941,11 @@ void advect_rk3::do_step(double dt,
         std::cout << "up1: " << (up) << std::endl;
         // _P->set_property(ci->index(), i, 1, up);
         // Do substep
-        do_substep(dt * dti[step], up, ci->index(), i, step, num_substeps,
-                   xp0_idx, up0_idx, reloc);
+        // do_substep(dt * dti[step], up, ci->index(), i, step, num_substeps,
+        //            xp0_idx, up0_idx, reloc);
                    
+        do_substepLPT(dt * dti[step], up, ci->index(), i, step, num_substeps,
+                   xp0_idx, up0_idx, reloc, ForceBalance, Acceleration);
        //if rebound == true
             // End this iteration and rebound
         // dt_rem
@@ -2945,11 +2954,11 @@ void advect_rk3::do_step(double dt,
         // Store previous particle velocity in slot 2 
         //    Important to store here once rebound applied
         //      -Rebound applied in substep-
-        std::cout << "up2 AFsubstep: " << (up) << std::endl;
+        // std::cout << "up2 AFsubstep: " << (up) << std::endl;
         
 
-        _P->set_property(ci->index(), i, 1, up);
-        std::cout << "P Velocity Final: " << up << std::endl;
+        // _P->set_property(ci->index(), i, 1, up);
+        // std::cout << "P Velocity Final: " << up << std::endl;
                    
       } // End of particle loop
     
@@ -3146,6 +3155,8 @@ void advect_rk4::do_step(double dt,
         
 
         // up = do_stepLPT(dt, up, up_1, up1, LPTParameters);
+        dt = DEFINE_DPM_TIMESTEP(dt, up, up_1, LPTParameters);
+        // set dT to 1 second as up is 1 sec
         up = do_stepLPT(dt, up, up_1, up1, pPos1, LPTParameters);
 
         // Store previous particle velocity in slot 2 
