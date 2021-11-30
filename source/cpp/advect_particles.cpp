@@ -848,7 +848,7 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   if (i == gdim-1)
   {
     H = h; // Set Z to boundary height, not hydraulic
-    uMax = 0.0022; // Bouyancy acting upon particle
+    uMax = 0.0022; //0.000005; // Bouyancy acting upon particle
     // Point pPos = _P->x(ci->index(), 1);
     // s = ( Z particle position minus zMin ) / Zrange
     std::cout << "pPos[2]: " << pPos[2] << std::endl;
@@ -2869,7 +2869,7 @@ void advect_rk3::do_step(double dt,
             // Accelerations due to all other forces except drag force
             Acceleration[iI] = this->cal_WallLiftSq(LPTParameters[3],
               LPTParameters[0], LPTParameters[2], reynolds, iI, up, up1,
-              pPos1, gdim, LPTParameters[4], LPTParameters[5], dt);
+              pPos, gdim, LPTParameters[4], LPTParameters[5], dt);
           } else
           {
             Acceleration[iI] = 0;
