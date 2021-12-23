@@ -82,6 +82,9 @@ public:
   // Step forward in time dt using LPT
   void do_step(double dt,
     Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
+    
+  // void do_step(double dt,
+  //   Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic>> LPTParameters);
 
   // Step forward in time dt & Lagrangain Particle Tracking
   //  LPTParameters expected...
@@ -93,8 +96,14 @@ public:
   //[4]    Microfluidic Height Square Channel (m)
   //[5]    Microfluidic Width Square Channel (m)
   //
-  Point do_stepLPT(double dt, Point& up, Point& up_1,
+  Point do_stepLPT(double dt, Point& up, Point& up_1, Point& up1, Point& pPos,
       Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
+      
+  static double DEFINE_DPM_TIMESTEP(double dt, Point& up, Point& up_1,
+      Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
+  // New Test 1
+  // Point do_stepLPT(double dt, Point& up, Point& up_1, Point& up1, Point& pPos,
+  //     Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic>> LPTParameters);
 
   // Update facet info on moving mesh
   void update_facets_info();
@@ -106,8 +115,13 @@ public:
   static double cal_reynolds(double dynVisc, double particleDiameter,
     double flowDensity, Point& up,  Point& up_1);
   static double cal_WallLiftSq(double dynVisc, double particleDiameter,
-    double flowDensity, int i, Point& up,  Point& up_1, double h, double w);
-  double cal_Norm(double x, int n);
+    double flowDensity, double reynolds, int i, Point& up,  Point& up1,
+    Point& pPos, int gdim, double h, double w, double dt);
+  static double cal_WallLiftSq(double dynVisc, double particleDiameter,
+    double flowDensity, double reynolds, int i, int gdim, Point& up,
+     Point& pPos, Point& dPoint, Point& P4);
+  // Point cal_ParticleDistToBoundary(const Mesh mesh, Point pPos, double Zmid);
+  // double cal_Norm(double x, int n);
 
   // Destructor
   ~advect_particles();
@@ -165,10 +179,18 @@ protected:
   // Method for substepping in multistep schemes
 
   void do_substep(double dt, Point& up, const std::size_t cidx,
-                  std::size_t pidx, const std::size_t step,
+                  std::size_t pidx, std::size_t& step,
                   const std::size_t num_steps, const std::size_t xp0_idx,
                   const std::size_t up0_idx,
                   std::vector<std::array<std::size_t, 3>>& reloc);
+                  
+  void do_substepLPT(double dt, Point& up, const std::size_t cidx,
+                  std::size_t pidx, std::size_t& step,
+                  const std::size_t num_steps, const std::size_t xp0_idx,
+                  const std::size_t up0_idx,
+                  std::vector<std::array<std::size_t, 3>>& reloc,
+                  const double ForaceBalance, Point& Acceleration,
+                  Point& up_1);
 
   // Multi-stage scheme data
   std::size_t xp0_idx, up0_idx;
@@ -237,7 +259,10 @@ public:
   //[5]    Microfluidic Width Square Channel (m)
   void do_step(double dt,
     Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
-
+    
+  // void do_step(double dt,
+  //   Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters,
+  //   BoundaryMesh bmeshXY);
 
   void init_weights()
   {
