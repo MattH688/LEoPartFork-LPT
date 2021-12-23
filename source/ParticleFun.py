@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 
 import numpy as np
+import math
 import dolfin
 import dolfin.cpp as cpp
 from mpi4py import MPI as pyMPI
@@ -197,7 +198,8 @@ class particles(compiled_module.particles):
         import csv
         import os
         
-        
+        CellPartVelAdj = False
+        stop = False
         # Legacy code - Unsure on purpose but used for importing process
         if isinstance(fname_list, str) and isinstance(property_list, int):
             fname_list = [fname_list]
@@ -233,6 +235,8 @@ class particles(compiled_module.particles):
             if comm.Get_rank() == 0:
                 if not ParticleNum[0]:
                     print("No particles detected")
+                    CellPartVelAdj = False
+                    stop = True
                 else:
                     # with open('', mode='a+') as csvfile:
                     Ftext = "{}/Particle_{:.0f}.csv".format(fname_list[0], ParticleNum[0][0])
@@ -241,33 +245,362 @@ class particles(compiled_module.particles):
                         RowID = True
                     else:
                         RowID = False
-                    with open(Ftext, mode=mode1) as csvfile:
-                        CSVwriter = csv.writer(csvfile, delimiter=',')
+                    if (mode1=="a+"):
+                        with open(Ftext, mode=mode1) as csvfile:
+                            CSVwriter = csv.writer(csvfile, delimiter=',')
 
-                        # spamwriter = csv.writer(csvfile, delimiter=' ',quotechar='|',
-                        #     quoting=csv.QUOTE_MINIMAL)
-                        # with open(fname, mode) as f:
-                        property_root = np.float16(np.hstack(property_root).T)
-                        # print(property_root)
-                        # print(property_root[0])
-                    #     pickle.dump(property_root, f))
-                        # print("Length of Co-ords: ",len(property_root[0]))
-                        if (RowID == True):
-                            if (len(property_root[0]) == 3):
-                                CSVwriter.writerow(['x', 'y', 'z'])
-                            else:
-                                CSVwriter.writerow(['x', 'y'])
-                        CSVwriter.writerow(property_root[0])
+                            # spamwriter = csv.writer(csvfile, delimiter=' ',quotechar='|',
+                            #     quoting=csv.QUOTE_MINIMAL)
+                            # with open(fname, mode) as f:
+                            property_root = np.float16(np.hstack(property_root).T)
+                            # print(property_root)
+                            # print(property_root[0])
+                        #     pickle.dump(property_root, f))
+                            # print("Length of Co-ords: ",len(property_root[0]))
+                            if (RowID == True):
+                                if (len(property_root[0]) == 3):
+                                    CSVwriter.writerow(['x', 'y', 'z'])
+                                else:
+                                    CSVwriter.writerow(['x', 'y'])
+                            CSVwriter.writerow(property_root[0])
 
-                    # ofile = File("u.pvd")
-                    # ofile << u, t
+
+                    if (mode1=="r"):
+                        with open(Ftext) as f:
+                            
+                            N = 100
+                            lastN = list(f)[-N:]
+                            # print("is open: ", (lastN == True))
+
+                            if (((not lastN) == False) & (all(lastN[0] == item for item in lastN))):
+                                CellPartVelAdj = True
+                                print("List all same")
+                            # else:
+                            #     CellPartVelAdj = False
+
+                            #all(x==myList[0] for x in myList)
+                            
+        return CellPartVelAdj, stop
+        
+    def _Particle_Distance_To_Boundary(self, mesh, bmesh, particles, Zmid):
+
+        """
+        Similar to dump2file...
+        
+        1) Open each particle
+        2) Extract co-ordinates
+        3) Get distance from boundary selected
+        
+        """
+        import math
+
+        Zmid *= 100
+        # P1 = df.Point(0.0007862,0.0115,Zmid) # Inlet Straight#0.011138502
+        # P12 = df.Point(0.00937056, 0.0110739, (Zmid)) # Inlet Curve
+        # P2 = df.Point(0.00137025, 0.00867547, Zmid) # Outlet Straight
+        
+        # # # Scale mesh Z axis
+        # x = bmesh.coordinates()
+        # x[:, 2] *= 100
+
+        # # Creating bonding box tree of mesh
+        # #     where Z axis is very large
+        bbtree = mesh.bounding_box_tree()
+        bbtree.build(bmesh)
+
+        candidate_cells = [c.index() for c in dolfin.cells(mesh)]
+        num_properties = particles.num_properties()
+        print(num_properties)
+
+        for c in candidate_cells:
+            for pi in range(particles.num_cell_particles(c)):
+                particle_props = list(particles.property(c, pi, prop_num)
+                                    for prop_num in range(num_properties))
+
+                pPos = particle_props[0]
+                print("pPos: ", pPos.x(), pPos.y(), pPos.z())
+
+                P2 = dolfin.Point(pPos[0], pPos[1], Zmid)
+                # # Distance to closest XY exterior boundary 
+                d1, distance = bbtree.compute_closest_entity(P2)
+
+
+                # # Find vertices from mesh to find co-ordinate position of closet entity
+                closest_cell = bmesh.cells()[d1]
+                vertices_of_closest_cell = bmesh.coordinates()[closest_cell,:]
+            
+                # # Temporary distance D1
+                # #     Make sure D1 is greater than XY width
+                D1 = 100
+                
+                # # P3 Particle position without Z axis
+                P3 = dolfin.Point(P2.x(), P2.y(), 0)
+
+                ii = 0
+                xy = 0
+                P3x = [0,0,0]
+                P3y = [0,0,0]
+
+                
+                # # Assumes triangle, cycle through 3 points
+                for i in vertices_of_closest_cell:
+
+                    # P1 verticies without Z axis
+                    P1 = dolfin.Point(i[0], i[1], 0)
+                    # Calculate nearest point
+                    D = P3.distance(P1)
                     
-                    # with open(fname, mode) as f:
-                    #     property_root = np.float16(np.hstack(property_root).T)
-                    #     pickle.dump(property_root, f)
-        return
+                    # # Particle - Vertex
+                    # P3x[ii] = P3.x() - P1.x()
+                    # P3y[ii] = P3.y() - P1.y()
+
+                    # If distance is smaller than previous distance
+                    if D1 > D:
+                        D1 = D
+                        # Cal. vector from particle to vertex
+                        # P4 = P3 - P1
+                        # Save point to cal. norm off
+                        P4a = P1
 
 
+
+                # # Calculate XY line equation
+                # y = mx + b
+                xy = (vertices_of_closest_cell[1] 
+                    - vertices_of_closest_cell[0])
+                print("xy: ", xy)
+
+                if ((xy[0] != 0)):
+                    # Cal. m, y / x = m (assume b = 0)
+                    mVal = xy[1] / xy[0]
+                    # Cal. b, y - mx = b
+                    bVal = (vertices_of_closest_cell[0][1] 
+                        - (vertices_of_closest_cell[0][0] * mVal))
+                    # # Using y = xc, b + (x * m) = y
+                    # x is the particle pos.
+                    ymVal = (P3[0] * mVal) + bVal
+                    # y minus pPos y
+                    print(ymVal)
+                    ymVal -= P3[1]
+                    print(ymVal)
+                    # x = (y - b) / c
+                    # y is the particle pos.
+                    xmVal = (P3[1] - bVal) / mVal
+                    # x minus pPos x
+                    print(xmVal)
+                    xmVal -= P3[0]
+                    print(xmVal)
+                    #
+                    if (ymVal < 0):
+                        yc = 1
+                    else:
+                        yc = -1
+
+                    if (xmVal < 0):
+                        xc = 1
+                    else:
+                        xc = -1
+                    
+                    # #  Calculate norm of the surface
+                    ## B - A
+                    BA = (dolfin.Point(vertices_of_closest_cell[1]
+                        - vertices_of_closest_cell[0]))
+                    ## C - A
+                    CA = (dolfin.Point(vertices_of_closest_cell[2]
+                        - vertices_of_closest_cell[0]))
+
+                    print("BA: ", BA.x(), BA.y(), BA.z())
+                    print("CA: ", CA.x(), CA.y(), CA.z())
+
+                    ## Calculating without the Z axis
+                    FaceNormVector = [0,0,0]
+                    FaceNormVector[1] = abs(BA.x() * CA.x())
+                    FaceNormVector[0] = abs(BA.y() * CA.y())
+                else:
+                    # Boundary Pos. minus Particle position
+                    xVal = P4a[0] - P3[0]
+
+                    if (xVal < 0):
+                        xc = 1
+                    else:
+                        xc = -1
+
+                    yc = 1
+
+                    FaceNormVector = [0,0,0]
+                    FaceNormVector[0] = abs(distance) * xc
+
+                FaceNormVector = dolfin.Point(FaceNormVector)
+
+
+                print("FaceNormVector: ", FaceNormVector.x(), FaceNormVector.y(),
+                    FaceNormVector.z())
+
+                # Escape if FaceNormVector is 0
+                #   Uses previously calculated values (pos and H)
+                print((FaceNormVector.x() != 0))
+                print((FaceNormVector.y() != 0))
+                if ((FaceNormVector.x() == 0) and (FaceNormVector.y() == 0)):
+                # if ((FaceNormVector.x() != 0) and (FaceNormVector.y() != 0)):
+                    break
+                else:
+                    ## Calculate the base magnitude of facenorm
+                    Mag = math.sqrt((FaceNormVector.x() * FaceNormVector.x())
+                        + (FaceNormVector.y() * FaceNormVector.y()))
+
+                    print("Mag: ", Mag)
+
+                    if (yc < 0):
+                        FaceNormVector[1] *= -1
+
+                    if (xc < 0):
+                        FaceNormVector[0] *= -1
+
+                    print("FaceNormVector: ", FaceNormVector.x(), FaceNormVector.y(),
+                        FaceNormVector.z())
+
+                    iI = 2
+                    # D1 = distance
+                    # Replace particle position with vertex position
+                    P3 = P4a
+
+                    # Add 1.5 distance vector to point moving particle
+                    #   positive away from closest vertex to opposite vertex
+                    # FaceNormVector1 = FaceNormVector
+                    # FaceNormVector1[0] = FaceNormVector.x() * ((distance * 1.5) / Mag)
+                    # FaceNormVector1[1] = FaceNormVector.y() * ((distance * 1.5) / Mag)
+                    # FaceNormVector1[2] = 0
+
+
+
+                    # Add normal distance to FaceNormVector
+                    FaceNormVector[0] = FaceNormVector.x() * ((distance) / Mag)
+                    FaceNormVector[1] = FaceNormVector.y() * ((distance) / Mag)
+                    # FaceNormVector[2] = 0
+
+                    # # Add initial distance
+                    P3 += (FaceNormVector * 2)
+
+                    while iI < 200:
+
+                        # Reset Z axis to Zmid otherwise adds very large distance
+                        P3 = dolfin.Point(P3.x(), P3.y(), Zmid)
+
+                        print("P3: ", P3.x(), P3.y(), P3.z())
+
+                        # Check if past midpoint of the channel so particle direction is
+                        #   opposite in the X or Y axis (whichever is largest - see above)
+                        d1, distance1 = bbtree.compute_closest_entity(P3)
+
+                        print("Distance1: ", distance1)
+
+                        # Check if distance prior is smaller than current distance
+                        if (distance1 < (distance)):
+
+                            closest_cell = bmesh.cells()[d1]
+                            vertices_of_closest_cell = bmesh.coordinates()[closest_cell,:]
+
+                            P1 = dolfin.Point(vertices_of_closest_cell[0][0],
+                            vertices_of_closest_cell[0][1], Zmid)
+
+                            # Produce vector from vertex + distance from newest vertex
+                            # P5 = P3 - P1
+                            P5 = P1 - P4a
+                            print("P1: ", P1.x(), P1.y(), P1.z())
+                            print("P4a: ", P4a.x(), P4a.y(), P4a.z())
+                            print("P5 vec", P5.x(), P5.y())
+
+                            DistanceT1 = math.sqrt((P5.x() * P5.x())
+                                + (P5.y() * P5.y()))
+
+                            break
+                        else:
+                            # Add distance to vertex every iteration. 
+                            P3 += FaceNormVector
+
+                        closest_cell = bmesh.cells()[d1]
+                        vertices_of_closest_cell = bmesh.coordinates()[closest_cell,:]
+
+                        P1 = dolfin.Point(vertices_of_closest_cell[0][0],
+                            vertices_of_closest_cell[0][1], Zmid)
+
+                        # Produce vector from vertex + distance from newest vertex
+                        # P5 = P3 - P1
+                        # P5 = P1 - P3
+                        # print("P5 vec", P5.x(), P5.y())
+
+                        # # Check vector to closest vertex is the opposite of FaceNormVector
+                        # # if ((((FaceNormVector.x() > 0) & (0 > P5.x()))
+                        # #     or ((FaceNormVector.x() < 0) & (0 < P5.x())))
+                        # #     & (((FaceNormVector.y() > 0) & (0 > P5.y())) 
+                        # #     or ((FaceNormVector.y() < 0) & (0 < P5.y())))):
+                        # if ((((FaceNormVector.x() > 0) & (P5.x() > 0))
+                        #     or ((FaceNormVector.x() < 0) & (P5.x() < 0)))
+                        #     & (((FaceNormVector.y() > 0) & (P5.y() > 0)) 
+                        #     or ((FaceNormVector.y() < 0) & (P5.y() < 0)))):
+                            
+                        #     print("break")
+                        #     # Escape as found distance from old vertex to new vertex
+                        #     break
+                        # else:
+                        #     # Add distance to vertex every iteration. 
+                        #     P3 += FaceNormVector
+                        # Ensure additional iteration count is added
+                        iI += 1
+                    # Escape if FaceNormVector is 0, set to maximum known length
+                    else:
+                        iI = 200
+
+                    # To avoid excessive iteration, set default to 500 um
+                    if (iI >= 200) or (DistanceT1 == 0):
+                        # # Save distance to slot 6,1 of particle
+                        # Use previous distanceT
+                        distanceT = particle_props[3][1]
+                        dPoint = dolfin.Point(distance, distanceT, 0)
+
+                    else:
+                        # Calculate distance from old to new vertex (total distance)
+                        distanceT = (distance * iI) + distance1
+
+                        # # Save distance, diameter and [0] to slot 6 of particle
+                        dPoint = dolfin.Point(distance, DistanceT1, 0)
+                        print("Total DistanceT1: ", (DistanceT1))
+
+                    print("dPoint: ", dPoint.x(), dPoint.y(), dPoint.z())
+
+                    particles.set_property(c, pi, 3, dPoint)
+                    particles.set_property(c, pi, 4, FaceNormVector)
+
+                    print("Distance: ", distance)
+                    # print("Distance 1: ", (distance + distance1))
+                    print("Total Distance: ", (distanceT))
+
+                    # set.time(5)
+        
+        # Need to reset bounding box tree
+        bbtree = mesh.bounding_box_tree()
+        bbtree.build(mesh)
+        # Need to write distance S XY and Z to particle
+
+    def _build_exterior_mesh(self, mesh, XYZ):
+        # Create an exterior mesh
+        bmesh = dolfin.BoundaryMesh(mesh, "exterior")
+        
+        # # Scale mesh Z axis
+        x = bmesh.coordinates()
+        if XYZ < 2:
+            x[:, 0:1] *= 100
+        else:
+            x[:, 2] *= 100
+
+        # # Creating bonding box tree of mesh
+        # #     where Z axis is very large
+        # bbtree = mesh.bounding_box_tree()
+        # bbtree.build(bmesh)
+
+        return bmesh
+
+            
 def _parse_advect_particles_args(args):
     args = list(args)
     args[1] = args[1]._cpp_object
