@@ -100,7 +100,8 @@ public:
       Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
       
   static double DEFINE_DPM_TIMESTEP(double dt, Point& up, Point& up_1,
-      Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
+      Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters,
+      Point& pPos, Point& dPoint);
   // New Test 1
   // Point do_stepLPT(double dt, Point& up, Point& up_1, Point& up1, Point& pPos,
   //     Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, Eigen::Dynamic>> LPTParameters);
@@ -109,16 +110,27 @@ public:
   void update_facets_info();
   
   // Calculating Lagrangain particle movement
-  static double cal_drag(double dynVisc, double particleDiameter,
-    double flowDensity, Point& up, Point& up_1);
+  static double cal_drag(double reynolds);
   static double cal_relax(double dynVisc, double diameter, double density);
   static double cal_reynolds(double dynVisc, double particleDiameter,
-    double flowDensity, Point& up,  Point& up_1);
+    double flowDensity, double FlowVel,  double PartVel);
   static double cal_WallLiftSq(double dynVisc, double particleDiameter,
     double flowDensity, double reynolds, int i, Point& up,  Point& up1,
     Point& pPos, int gdim, double h, double w, double dt);
-  // static double cal_ParticleDistFromBoundary(Point& pp, const Mesh* mesh);
-  double cal_Norm(double x, int n);
+  // static double cal_WallLiftSq(double dynVisc, double particleDiameter,
+  //   double particleDensity, double flowDensity, Point& zParam, double uMax,
+  //   int i, int gdim, Point& up, Point& pPos, Point& dPoint, Point& P4,
+  //   Point& C_U_G, Point& C_V_G, Point& C_W_G);
+  static double cal_NetLiftHoLeal1974(double dynVisc, double particleDiameter,
+    double particleDensity, double flowDensity, Point& zParam, double uMax,
+    int i, int gdim, Point& up, Point& pPos, Point& dPoint, Point& P4,
+    Point C_U_G, Point C_V_G, Point C_W_G);
+  static double cal_WallCorrection(double particleDiameter, double distance);
+  // Point cal_ParticleDistToBoundary(const Mesh mesh, Point pPos, double Zmid);
+  // double cal_Norm(double x, int n);
+  static std::tuple<Point, Point, Point> cal_ShearGradient(Point& up, Point& pPos,
+    double gdim, Eigen::MatrixXd basis_mat, const dolfin::Cell ci,
+    Eigen::Map<Eigen::VectorXd> exp_coeffs, std::shared_ptr<const FiniteElement> _element);
 
   // Destructor
   ~advect_particles();
@@ -186,7 +198,8 @@ protected:
                   const std::size_t num_steps, const std::size_t xp0_idx,
                   const std::size_t up0_idx,
                   std::vector<std::array<std::size_t, 3>>& reloc,
-                  const double ForaceBalance, Point& Acceleration);
+                  Point& ForaceBalance, Point& Acceleration,
+                  Point& up_1);
 
   // Multi-stage scheme data
   std::size_t xp0_idx, up0_idx;
@@ -255,7 +268,10 @@ public:
   //[5]    Microfluidic Width Square Channel (m)
   void do_step(double dt,
     Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters);
-
+    
+  // void do_step(double dt,
+  //   Eigen::Ref<const Eigen::Array<double, Eigen::Dynamic, 1>> LPTParameters,
+  //   BoundaryMesh bmeshXY);
 
   void init_weights()
   {

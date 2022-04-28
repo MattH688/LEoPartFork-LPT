@@ -1136,10 +1136,363 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
 //   Point& pp, const Mesh* mesh, double h, double w)
 //
 //      Calculates net wall lift
-double advect_particles::cal_WallLiftSq(double dynVisc, 
+// double advect_particles::cal_WallLiftSq(double dynVisc, 
+//   double particleDiameter, double particleDensity, double flowDensity,
+//   Point& zParam, double uMax, int i, int gdim, Point& up,
+//   Point& pPos, Point& dPoint, Point& P4)
+// {
+
+//   // Initialise G1 and G2 for lift constants
+//   //  GSpot is based upon
+//   //    Ho, B. P., & Leal, L. G. (1974).
+//   //      Inertial migration of rigid spheres in
+//   //      two-dimensional unidirectional flows.
+//   //      Journal of Fluid Mechanics, 65(2), 365–400.
+//   //    https://doi.org/10.1017/S0022112074001431
+//   //  G1 in slot 0, G2 in slot 1
+//   //  The index is 0.01 step, index start at 0
+//   //    i.e. 49 is 0.50
+//   double GSpot[2][50] =
+//   { 
+//     { 0,
+//       0.0419,
+//       0.0837,
+//       0.1254,
+//       0.1669,
+//       0.208,
+//       0.2489,
+//       0.2894,
+//       0.3293,
+//       0.3688,
+//       0.4077,
+//       0.4459,
+//       0.4834,
+//       0.52,
+//       0.556,
+//       0.591,
+//       0.626,
+//       0.659,
+//       0.691,
+//       0.723,
+//       0.753,
+//       0.782,
+//       0.81,
+//       0.836,
+//       0.861,
+//       0.885,
+//       0.907,
+//       0.927,
+//       0.945,
+//       0.96,
+//       0.973,
+//       0.982,
+//       0.988,
+//       0.99,
+//       0.988,
+//       0.981,
+//       0.971,
+//       0.957,
+//       0.943,
+//       0.931,
+//       0.927,
+//       0.94,
+//       0.982,
+//       1.07,
+//       1.23,
+//       1.5,
+//       1.93,
+//       2.58,
+//       3.59,
+//       5.33
+//       },
+//     { 1.072,
+//       1.07,
+//       1.068,
+//       1.066,
+//       1.062,
+//       1.056,
+//       1.05,
+//       1.042,
+//       1.033,
+//       1.023,
+//       1.012,
+//       1,
+//       0.987,
+//       0.972,
+//       0.956,
+//       0.94,
+//       0.922,
+//       0.902,
+//       0.882,
+//       0.861,
+//       0.838,
+//       0.815,
+//       0.79,
+//       0.765,
+//       0.738,
+//       0.711,
+//       0.683,
+//       0.654,
+//       0.625,
+//       0.596,
+//       0.566,
+//       0.536,
+//       0.506,
+//       0.477,
+//       0.368,
+//       0.345,
+//       0.324,
+//       0.306,
+//       0.292,
+//       0.282,
+//       0.278,
+//       0.28,
+//       0.291,
+//       0.315,
+//       0.354,
+//       0.414,
+//       0.505
+//     }
+//   };
+
+//   // Calculate relative speed of particle and flow
+//   //    Require for stress rate and shear gradient
+//   // Point P4 = (_P->property(ci->index(), i, 7));
+//   // Point dPoint = (_P->property(ci->index(), i, 6));
+//   double h = zParam[0]; // Channel height
+//   double w = dPoint[1]; // Channel width
+//   double sT = dPoint[0]; // Particle distance from boundary
+//   // double uMax = 0.76;//1; // Needs to be imported from problem parameters
+//   double H = w;
+//   // double uMax = 1.8e-5;
+//   // double uMax = up.norm(); // double uNorm = up.norm();
+//   //// uM is Mean velocity in Ho and Leal is assumed to be
+//   ////    2/3 max flow velocity
+//   // double uM = 2.0 * uMax ;
+//   // uM /= 3.0;
+//   double uM = uMax;
+//   // double particleRadius = particleDiameter / 2.0;
+  
+
+//   int s = ((sT / w) * 100.0);
+
+
+
+//   // If Z axis, use Z axis height and P position
+//   //  Assumed is Z is a constant height
+//   if (i == gdim-1)
+//   {
+//     H = h;
+//     double zMin = zParam[1];
+//     double sTT = (pPos[2] - zMin);
+//     // k = (particleRadius) / (H);
+//     // if ( (sTT > (H - (particleDiameter / 2) ) ) || (sTT < (particleDiameter / 2) ) )
+//     //   {
+//     //     sTT = particleDiameter / 10;
+//     //   }
+//     sTT /= h;
+//     sTT *= 100.0;
+//     s = sTT;
+//     std::cout << "pPos[2]: " << pPos[2] << std::endl;
+//     std::cout << "Za axis S value: " << ((pPos[2] - 0.0110585) / 0.00016) << std::endl;
+//     std::cout << "Za axis S value: " << sTT << std::endl;
+//     // uMax = 0.022;//0.0022;//0.000005; // Bouyancy acting upon particle
+//     // uMax = 0.000005;
+//     // uMax = 200; // uMax = 0.8; 1000 100
+//     // sT = (s * 0.01 * H);
+//   }
+
+//   // Hydraulic Diameter of rectangle channel
+//   H = (w * h);
+//   H *= 2;
+//   H /= (w + h);
+//   // double k = (particleRadius) / (H);
+//   double k = (particleDiameter) / (H);
+
+
+
+//   // Stopped the fail due to s = 0 causing inf bug
+//   if (s < 1)
+//   {
+//     s = 1;
+//   } else if (s > 99)
+//   {
+//     s = 99;
+//   }
+  
+//   int sU = 1;
+//   if (s > 50)
+//   {
+//     s = 100 - s;
+//     sU = -1;
+//   }
+
+//   //// Shear Gradient (rate of change of Shear Rate)
+//   // double Lander = ( uMax / (sT) );
+//   // double Lander = ( uMax / (s * 0.01 * H) ); //uNorm * pow(k, 2);
+//   // double Lander = -8 * uMax;
+//   // double Lander = (pow( H, 2 ) / 2 ) * 8 * uMax;
+//   // double Lander = dynVisc * Beta;
+
+//   // double Lander = 0.0;
+//   // double Lander = -6.0;
+//   double Lander = -8.0;
+
+//   // double Lander = ( pow( H , 2) / 2 ) * uMax;
+//   // if (i != gdim-1)
+//   // {
+//   //   Lander = ( uMax / (sT) );
+//   // }
+
+//   //// Shear Rate
+//   // double Beta = uMax * H;
+//   // double Beta = dynVisc * Lander; //Beta = uNorm * k;
+//   // double Beta = ( uMax / (s * 0.01 * H) );
+//   // double Lander = dynVisc * Beta;
+//   // double Beta = 4 * uMax * ( 1 - (s * 0.01) ) * H;
+
+//   double Beta = 4.0 * ( 1.0 - (2.0 * (s * 0.01) ) );
+//   // double Beta = ( 1.0 - (2.0 * (s * 0.01) ) );
+
+//   // double Beta = 4 * uMax * H * ( 1 - (2 * (s * 0.01) ) );
+
+//   // std::cout << "Flow uNorm: " << uNorm << std::endl;
+//   std::cout << "P distance from boundary: " << s << std::endl;
+//   std::cout << "k: " << k << std::endl;
+//   // Invert for the GSpot as index 50 is 0 distance from wall
+//   s = 50 - s;
+//   // std::cout << "S value for G: " << s << std::endl;
+//   // std::cout << "G1: " << GSpot[0][s] << std::endl;
+//   // std::cout << "G2: " << GSpot[1][s] << std::endl;
+
+//   //// Lift force
+//   //  Using the defined G1 and G2 earlier
+//   //  & shear rate and shear gradient
+//   double CL = ( pow( Beta, 2) * GSpot[0][s] ) + (Beta * Lander * GSpot[1][s] );
+//   // double CL = 36 * (( pow( Beta, 2) * GSpot[0][s] ) + (Beta * GSpot[1][s] ));
+//   // double CL = 0.5;
+//   // Method using G1 G2
+//   // Flnl = k^2 * Reynolds * CL
+//   // k^2 = (particle radius / H)^2
+//   //// Ho and Leal 1974 5.24
+//   // double Flnl = pow( ( (particleDiameter) / H ) , 2);
+//   // Flnl *= (flowDensity * uMax * H) / dynVisc; // Reynolds;
+//   // // Flnl *= (flowDensity * uMax * particleDiameter) / dynVisc; // Reynolds;
+//   // Flnl *= CL;
+//   // Flnl = std::abs(Flnl);
+
+//   //// Ho and Leal 1974 5.27
+//   double Flnl = pow( uM , 2);
+//   // Flnl *= pow( (particleRadius) , 2); // a
+//   Flnl *= pow( (particleDiameter) , 2); // a
+//   Flnl *= pow( ( k ) , 2);
+//   // Flnl *= pow( ( k ) , 3);
+//   // Flnl *= H;
+//   // double Flnl = pow( (particleDiameter / 2) , 4);
+//   // Flnl /= pow( H , 2 );
+//   // Flnl *= pow( uMax , 2);
+//   Flnl *= flowDensity; // Reynolds;
+//   Flnl *= CL;
+//   // Flnl *= 5000;
+//   // Flnl = std::abs(Flnl);
+
+//   //// Comsol (same as Ho and Leal 1974 5.27)
+//   // double Flnl = pow( (particleDiameter) , 4);
+//   // Flnl /= pow( H , 2 );
+//   // Flnl *= pow( uMax , 2);
+//   // Flnl *= flowDensity; // Reynolds;
+//   // Flnl *= CL;
+//   // Flnl = std::abs(Flnl);
+
+//   //// Lateral Velocity Movement
+//   //// Ho and Leal 1974 6.1
+//   // Unlikely to be relevant due to acceleration req., not velocity
+//   // double PI = 3.14159265358979323846;
+//   // //
+//   // double Flnl = flowDensity;
+//   // Flnl *= pow( uM , 2);
+//   // // std::cout << "Flnl fD * uM " << Flnl << std::endl;
+//   // Flnl *= H;
+//   // // std::cout << "Flnl b4 divide " << Flnl << std::endl;
+//   // // Flnl *= 6;
+//   // // Flnl /= dynVisc * PI;
+//   // Flnl /= dynVisc * PI * 6.0;
+//   // Flnl *= pow( k , 3 );
+//   // Flnl *= CL;
+//   // // Re * Uz value
+//   // Flnl /= (flowDensity * uMax * H) / dynVisc;//reynolds
+//   // Flnl = std::abs(Flnl);
+
+//   // // std::cout << "Flnl AF CL " << Flnl << std::endl;
+
+//   if (i == gdim-1) // Z axis based on pPos using sU
+//   {
+//     Flnl *= sU;
+//     // Flnl = 0;
+//     // std::cout << "Flnl(z): " << Flnl << std::endl;
+//   } else { // Add lift to XY
+//     // int iP;
+//     // if (i == 1) // y axis
+//     // {
+//     //   iP = 0; // to change x axis
+//     // }
+//     // else // x axis
+//     // {
+//     //   iP = 1; // to change y axis
+//     // }
+//     // Add ratio of X:Y vectors
+//     // double ratioU = 1;
+//     // Total magnitude of XY is...
+//     // double MagXY = sqrt(pow( up[0], 2) + pow( up[1], 2));
+//     // Total magnitude of XY (face norm) is...
+//     double MagXY = sqrt(pow( P4[0], 2) + pow( P4[1], 2));//P4[i]
+  
+    
+//     // up1 is the direction along the X or Y axis the particle is moving
+//     //  This assumes a parabolic where flow drops off towards the boundaries
+//     //  Therefore, particle movement should be in the opposite direction to movement
+//     // Flnl *= (std::abs(up[iP]) / MagXY);
+//     Flnl *= (std::abs(P4[i]) / MagXY);
+//     if (P4[i] < 0) // Negative along axis
+//     {
+//       // std::cout << "Flnl: " << Flnl << std::endl;
+//       // up[ii] += ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
+//       // up[ii] += std::abs((lift * (std::abs(up[iP]) / ratioU) ) * ForceBal * (exp(-dt/ForceBal) - 1));
+//       Flnl *= -1;
+//     }
+//   }
+
+//   //// Convert force to acceleration
+//   // F = m*a == a = F/m
+//   // m = volume(Sphere) * density == 1/6 pi D^3 * Particle Density
+//   double PI = 3.14159265358979323846;
+//   double mass = (PI * pow( particleDiameter, 3 )); // Volume
+//   // std::cout << "mass1: " << mass << std::endl;
+//   mass /= 6.0;
+//   // std::cout << "mass2: " << mass << std::endl;
+//   mass *= particleDensity; // mass
+//   // std::cout << "mass3: " << mass << std::endl;
+//   Flnl /= mass; // F/m = Acceleration
+
+//   // // Ho & Leal (1974) Lateral Particle Velocity Eq. 6.1
+//   // double mass = (6 * PI * dynVisc * particleRadius);
+//   // double mass = 6 * PI * dynVisc;
+//   // Flnl /= mass; // F/m = Acceleration
+//   // // Calculate Particle Reynolds (using dimensionless Um)
+//   // double Reynolds = particleDensity * uMax * particleRadius * k;
+//   // Reynolds /= dynVisc;
+//   // Flnl /= Reynolds; // Usz * Re = Flnl
+
+//   return Flnl;
+// }
+
+
+//-----------------------------------------------------------------------------
+double advect_particles::cal_NetLiftHoLeal1974(double dynVisc, 
   double particleDiameter, double particleDensity, double flowDensity,
   Point& zParam, double uMax, int i, int gdim, Point& up,
-  Point& pPos, Point& dPoint, Point& P4)
+  Point& pPos, Point& dPoint, Point& P4, Point C_U_G = Point(0.0,0.0,0.0),
+  Point C_V_G = Point(0.0,0.0,0.0), Point C_W_G = Point(0.0,0.0,0.0))
 {
 
   // Initialise G1 and G2 for lift constants
@@ -1154,104 +1507,17 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   //    i.e. 49 is 0.50
   double GSpot[2][50] =
   { 
-    { 0,
-      0.0419,
-      0.0837,
-      0.1254,
-      0.1669,
-      0.208,
-      0.2489,
-      0.2894,
-      0.3293,
-      0.3688,
-      0.4077,
-      0.4459,
-      0.4834,
-      0.52,
-      0.556,
-      0.591,
-      0.626,
-      0.659,
-      0.691,
-      0.723,
-      0.753,
-      0.782,
-      0.81,
-      0.836,
-      0.861,
-      0.885,
-      0.907,
-      0.927,
-      0.945,
-      0.96,
-      0.973,
-      0.982,
-      0.988,
-      0.99,
-      0.988,
-      0.981,
-      0.971,
-      0.957,
-      0.943,
-      0.931,
-      0.927,
-      0.94,
-      0.982,
-      1.07,
-      1.23,
-      1.5,
-      1.93,
-      2.58,
-      3.59,
-      5.33
-      },
-    { 1.072,
-      1.07,
-      1.068,
-      1.066,
-      1.062,
-      1.056,
-      1.05,
-      1.042,
-      1.033,
-      1.023,
-      1.012,
-      1,
-      0.987,
-      0.972,
-      0.956,
-      0.94,
-      0.922,
-      0.902,
-      0.882,
-      0.861,
-      0.838,
-      0.815,
-      0.79,
-      0.765,
-      0.738,
-      0.711,
-      0.683,
-      0.654,
-      0.625,
-      0.596,
-      0.566,
-      0.536,
-      0.506,
-      0.477,
-      0.368,
-      0.345,
-      0.324,
-      0.306,
-      0.292,
-      0.282,
-      0.278,
-      0.28,
-      0.291,
-      0.315,
-      0.354,
-      0.414,
-      0.505
+    { 0, 0.0419, 0.0837, 0.1254, 0.1669, 0.208, 0.2489, 0.2894, 0.3293, 0.3688,
+      0.4077, 0.4459, 0.4834, 0.52, 0.556, 0.591, 0.626, 0.659, 0.691, 0.723,
+      0.753, 0.782, 0.81, 0.836, 0.861, 0.885, 0.907, 0.927, 0.945, 0.96, 0.973,
+      0.982, 0.988, 0.99, 0.988, 0.981, 0.971, 0.957, 0.943, 0.931, 0.927, 0.94,
+      0.982, 1.07, 1.23, 1.5, 1.93, 2.58, 3.59, 5.33
+    },
+    { 1.072, 1.07, 1.068, 1.066, 1.062, 1.056, 1.05, 1.042, 1.033, 1.023, 1.012,
+      1.0, 0.987, 0.972, 0.956, 0.94, 0.922, 0.902, 0.882, 0.861, 0.838, 0.815,
+      0.79, 0.765, 0.738, 0.711, 0.683, 0.654, 0.625, 0.596, 0.566, 0.536, 0.506,
+      0.477, 0.448, 0.420, 0.393, 0.368, 0.345, 0.324, 0.306, 0.292, 0.282, 0.278,
+      0.28, 0.291, 0.315, 0.354, 0.414, 0.505
     }
   };
 
@@ -1260,18 +1526,12 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   // Point P4 = (_P->property(ci->index(), i, 7));
   // Point dPoint = (_P->property(ci->index(), i, 6));
   double h = zParam[0]; // Channel height
-  double w = dPoint[1]; // Channel width
+  // double w = dPoint[1]; // Channel width
+  double w = 0.0005;
   double sT = dPoint[0]; // Particle distance from boundary
-  // double uMax = 0.76;//1; // Needs to be imported from problem parameters
   double H = w;
-  // double uMax = 1.8e-5;
-  // double uMax = up.norm(); // double uNorm = up.norm();
-  //// uM is Mean velocity in Ho and Leal is assumed to be
-  ////    2/3 max flow velocity
-  // double uM = 2.0 * uMax ;
-  // uM /= 3.0;
   double uM = uMax;
-  // double particleRadius = particleDiameter / 2.0;
+  double particleRadius = particleDiameter / 2.0;
   
 
   int s = ((sT / w) * 100.0);
@@ -1283,31 +1543,22 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   if (i == gdim-1)
   {
     H = h;
-    double zMin = zParam[1];
+    double zMin = zParam[1]; // Z minimum height
+    // Normalise Z position
     double sTT = (pPos[2] - zMin);
-    // k = (particleRadius) / (H);
-    // if ( (sTT > (H - (particleDiameter / 2) ) ) || (sTT < (particleDiameter / 2) ) )
-    //   {
-    //     sTT = particleDiameter / 10;
-    //   }
     sTT /= h;
     sTT *= 100.0;
     s = sTT;
     std::cout << "pPos[2]: " << pPos[2] << std::endl;
     std::cout << "Za axis S value: " << ((pPos[2] - 0.0110585) / 0.00016) << std::endl;
     std::cout << "Za axis S value: " << sTT << std::endl;
-    // uMax = 0.022;//0.0022;//0.000005; // Bouyancy acting upon particle
-    // uMax = 0.000005;
-    // uMax = 200; // uMax = 0.8; 1000 100
-    // sT = (s * 0.01 * H);
   }
 
   // Hydraulic Diameter of rectangle channel
   H = (w * h);
   H *= 2;
   H /= (w + h);
-  // double k = (particleRadius) / (H);
-  double k = (particleDiameter) / (H);
+  double k = (particleRadius) / (H);
 
 
 
@@ -1327,140 +1578,111 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
     sU = -1;
   }
 
-  //// Shear Gradient (rate of change of Shear Rate)
-  // double Lander = ( uMax / (sT) );
-  // double Lander = ( uMax / (s * 0.01 * H) ); //uNorm * pow(k, 2);
-  // double Lander = -8 * uMax;
-  // double Lander = (pow( H, 2 ) / 2 ) * 8 * uMax;
-  // double Lander = dynVisc * Beta;
-
-  // double Lander = 0.0;
-  // double Lander = -6.0;
-  double Lander = -8.0;
-
-  // double Lander = ( pow( H , 2) / 2 ) * uMax;
-  // if (i != gdim-1)
-  // {
-  //   Lander = ( uMax / (sT) );
-  // }
-
-  //// Shear Rate
-  // double Beta = uMax * H;
-  // double Beta = dynVisc * Lander; //Beta = uNorm * k;
-  // double Beta = ( uMax / (s * 0.01 * H) );
-  // double Lander = dynVisc * Beta;
-  // double Beta = 4 * uMax * ( 1 - (s * 0.01) ) * H;
-
-  double Beta = 4.0 * ( 1.0 - (2.0 * (s * 0.01) ) );
-  // double Beta = ( 1.0 - (2.0 * (s * 0.01) ) );
-
-  // double Beta = 4 * uMax * H * ( 1 - (2 * (s * 0.01) ) );
-
   // std::cout << "Flow uNorm: " << uNorm << std::endl;
   std::cout << "P distance from boundary: " << s << std::endl;
-  std::cout << "k: " << k << std::endl;
+  
   // Invert for the GSpot as index 50 is 0 distance from wall
   s = 50 - s;
-  // std::cout << "S value for G: " << s << std::endl;
-  // std::cout << "G1: " << GSpot[0][s] << std::endl;
-  // std::cout << "G2: " << GSpot[1][s] << std::endl;
 
-  //// Lift force
-  //  Using the defined G1 and G2 earlier
-  //  & shear rate and shear gradient
-  // double CL = ( pow( Beta, 2) * GSpot[0][s] ) + (Beta * Lander * GSpot[1][s] );
-  // double CL = 36 * (( pow( Beta, 2) * GSpot[0][s] ) + (Beta * GSpot[1][s] ));
-  double CL = 0.5;
-  // Method using G1 G2
-  // Flnl = k^2 * Reynolds * CL
-  // k^2 = (particle radius / H)^2
-  //// Ho and Leal 1974 5.24
-  // double Flnl = pow( ( (particleDiameter) / H ) , 2);
-  // Flnl *= (flowDensity * uMax * H) / dynVisc; // Reynolds;
-  // // Flnl *= (flowDensity * uMax * particleDiameter) / dynVisc; // Reynolds;
-  // Flnl *= CL;
-  // Flnl = std::abs(Flnl);
-
-  //// Ho and Leal 1974 5.27
-  double Flnl = pow( uM , 2);
-  // Flnl *= pow( (particleRadius) , 2); // a
-  Flnl *= pow( (particleDiameter) , 2); // a
-  Flnl *= pow( ( k ) , 2);
-  // Flnl *= pow( ( k ) , 3);
-  // Flnl *= H;
-  // double Flnl = pow( (particleDiameter / 2) , 4);
-  // Flnl /= pow( H , 2 );
-  // Flnl *= pow( uMax , 2);
-  Flnl *= flowDensity; // Reynolds;
-  Flnl *= CL;
-  // Flnl *= 5000;
-  // Flnl = std::abs(Flnl);
-
-  //// Comsol (same as Ho and Leal 1974 5.27)
-  // double Flnl = pow( (particleDiameter) , 4);
-  // Flnl /= pow( H , 2 );
-  // Flnl *= pow( uMax , 2);
-  // Flnl *= flowDensity; // Reynolds;
-  // Flnl *= CL;
-  // Flnl = std::abs(Flnl);
-
-  //// Lateral Velocity Movement
-  //// Ho and Leal 1974 6.1
-  // Unlikely to be relevant due to acceleration req., not velocity
-  // double PI = 3.14159265358979323846;
-  // //
-  // double Flnl = flowDensity;
-  // Flnl *= pow( uM , 2);
-  // // std::cout << "Flnl fD * uM " << Flnl << std::endl;
-  // Flnl *= H;
-  // // std::cout << "Flnl b4 divide " << Flnl << std::endl;
-  // // Flnl *= 6;
-  // // Flnl /= dynVisc * PI;
-  // Flnl /= dynVisc * PI * 6.0;
-  // Flnl *= pow( k , 3 );
-  // Flnl *= CL;
-  // // Re * Uz value
-  // Flnl /= (flowDensity * uMax * H) / dynVisc;//reynolds
-  // Flnl = std::abs(Flnl);
-
-  // // std::cout << "Flnl AF CL " << Flnl << std::endl;
-
-  if (i == gdim-1) // Z axis based on pPos using sU
-  {
-    Flnl *= sU;
-    // Flnl = 0;
-    // std::cout << "Flnl(z): " << Flnl << std::endl;
-  } else { // Add lift to XY
-    // int iP;
-    // if (i == 1) // y axis
-    // {
-    //   iP = 0; // to change x axis
-    // }
-    // else // x axis
-    // {
-    //   iP = 1; // to change y axis
-    // }
-    // Add ratio of X:Y vectors
-    // double ratioU = 1;
-    // Total magnitude of XY is...
-    // double MagXY = sqrt(pow( up[0], 2) + pow( up[1], 2));
-    // Total magnitude of XY (face norm) is...
-    double MagXY = sqrt(pow( P4[0], 2) + pow( P4[1], 2));//P4[i]
   
-    
+  //// Ho and Leal 1974 5.27
+  double Flnl = pow( (particleRadius) , 2); // a
+  Flnl *= pow( ( k ) , 2);
+  Flnl *= flowDensity; // Reynolds;
+  Flnl *= pow( uM , 2); // Max Velocity
+
+
+  // Add ratio of X:Y vectors
+  // double ratioU = 1;
+  // Total magnitude of XY is...
+  double MagXY = sqrt(pow( up[0], 2) + pow( up[1], 2));
+  // Total magnitude of XY (face norm) is...
+  // double MagXY = sqrt(pow( P4[0], 2) + pow( P4[1], 2));//P4[i]
+
+  if (i == 0) // Direction lift to X
+  {    
     // up1 is the direction along the X or Y axis the particle is moving
     //  This assumes a parabolic where flow drops off towards the boundaries
     //  Therefore, particle movement should be in the opposite direction to movement
-    // Flnl *= (std::abs(up[iP]) / MagXY);
-    Flnl *= (std::abs(P4[i]) / MagXY);
-    if (P4[i] < 0) // Negative along axis
+    Flnl *= (std::abs(up[1]) / MagXY);
+
+    if (P4[0] < 0)//(P4[i] < 0) // Negative along axis
     {
-      // std::cout << "Flnl: " << Flnl << std::endl;
-      // up[ii] += ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
-      // up[ii] += std::abs((lift * (std::abs(up[iP]) / ratioU) ) * ForceBal * (exp(-dt/ForceBal) - 1));
       Flnl *= -1;
     }
+  } else if (i == 1) // Direction lift to Y
+  {
+    // up1 is the direction along the X or Y axis the particle is moving
+    //  This assumes a parabolic where flow drops off towards the boundaries
+    //  Therefore, particle movement should be in the opposite direction to movement
+    Flnl *= (std::abs(up[0]) / MagXY);
+
+    if (P4[i] < 0)//(P4[i] < 0) // Negative along axis
+    {
+      Flnl *= -1;
+    }
+  } else // Direction lift to Z
+  { 
+    Flnl *= sU;
   }
+
+
+  //// Ho & Leal 1974 Lift Coefficient parabolic 2D flow
+  //  Using the defined G1 and G2 earlier
+  //  & shear rate and shear gradient
+  double beta, Lander = 0;
+
+  if (C_U_G.x() == 0) // Calculate Shear Gradient and Rate of Change
+  {                   //  based upon Ho & Leal 1974
+    // beta = 4.0 * (1.0 - (2.0 * (s * 0.01))); // * uM
+    beta = (50.0 - s) * 0.01;
+    beta *= 2.0;
+    beta = 1.0 - beta;
+    beta *= 4.0;
+    Lander = -4.0;
+  } else // Calculate Shear Gradient and Rate of Change from fluid
+  {
+    double Gxy = C_U_G[1];
+    double Gxz = C_U_G[2];
+
+    double Gyx = C_V_G[0];
+    double Gyz = C_V_G[2];
+
+    double Gzx = C_W_G[0];
+    double Gzy = C_W_G[1];
+
+    double U, G = 0;
+    if (i == 0) // Add lift to X
+    {
+      U = sqrt(pow(up[1], 2) + pow(up[2], 2));
+      // double G = sqrt(pow( (Gxz), 2) + pow( (Gxy), 2));
+      G = sqrt(pow( (Gzx), 2) + pow( (Gyx), 2));
+      U *= C_U_G[0] / std::abs(C_U_G[0]);
+    } else if (i == 1) // Add lift to Y
+    {
+      U = sqrt(pow(up[0], 2) + pow(up[2], 2));
+      // double G = sqrt(pow(1/Gxy, 2) + pow( (Gyz), 2));
+      G = sqrt(pow(Gxy, 2) + pow( (Gzy), 2));
+      U *= C_V_G[1] / std::abs(C_V_G[1]);
+    } else
+    {
+      U = sqrt(pow(up[0], 2) + pow(up[1], 2));
+      // double G = sqrt(pow(1/Gxz, 2) + pow(1/Gyz, 2));
+      G = sqrt(pow(Gxz, 2) + pow(Gyz, 2));
+    }
+    //// Shear Gradient - Velocity perpendicular over a distance
+    beta = std::abs(G * (H / uM));
+    // double beta = G * (H / uM);
+  
+    //// Shear rate - Velocity perpendicular to fluid flow
+    Lander = pow(U, 2) / pow(uM, 2);
+  }
+
+  
+  double CL = ( (( pow( beta, 2) * GSpot[0][s] ))
+                + (( beta * Lander * GSpot[1][s] )) );
+  Flnl *= CL;
+
 
   //// Convert force to acceleration
   // F = m*a == a = F/m
@@ -1473,18 +1695,464 @@ double advect_particles::cal_WallLiftSq(double dynVisc,
   mass *= particleDensity; // mass
   // std::cout << "mass3: " << mass << std::endl;
   Flnl /= mass; // F/m = Acceleration
-
-  // // Ho & Leal (1974) Lateral Particle Velocity Eq. 6.1
-  // double mass = (6 * PI * dynVisc * particleRadius);
-  // double mass = 6 * PI * dynVisc;
-  // Flnl /= mass; // F/m = Acceleration
-  // // Calculate Particle Reynolds (using dimensionless Um)
-  // double Reynolds = particleDensity * uMax * particleRadius * k;
-  // Reynolds /= dynVisc;
-  // Flnl /= Reynolds; // Usz * Re = Flnl
+  std::cout << "Flnl: " << Flnl << std::endl;
 
   return Flnl;
 }
+
+//-----------------------------------------------------------------------------
+std::tuple<Point, Point, Point> advect_particles::cal_ShearGradient(Point& up,
+                        Point& pPos, double gdim, Eigen::MatrixXd basis_mat,
+                        const dolfin::Cell ci, Eigen::Map<Eigen::VectorXd> exp_coeffs,
+                        std::shared_ptr<const FiniteElement> _element)
+{
+  Point C_U_G, C_V_G, C_W_G = up * 0;
+  // Point C_V_G = up * 0;
+  // Point C_W_G = up * 0;
+  double pStep = 1e-5; // 10 micrometre
+
+  //// Calculate flow gradient for axis
+  // Based on the C_U_G it would suggest shear of U velocity
+  //  on the X, Y and Z axis
+  // Due to axis implemented as pPos[iI], where iI = 0 to 2
+  //  signifying X, Y, Z position, iI will use axis not velocity
+  for (std::size_t iI = 0; (iI < gdim); iI++)
+  {
+    // Reset point
+    Point pPos1 = pPos;
+    pPos1[iI] += pStep; // Add to axis
+
+    // Retrieve velocity at new point
+    Utils::return_basis_matrix(basis_mat.data(), pPos1, ci,
+                                _element);
+    Eigen::VectorXd u_p1 = basis_mat * exp_coeffs;
+
+    Point up1(gdim, u_p1.data());
+
+    //// Velocity gradient vector
+
+    // Caluclate individual axis gradient force
+    // double G = std::abs(up1[iI]) - std::abs(up[iI]);
+    std::cout << "up1: " << std::abs(up1[iI]) << std::endl;
+    std::cout << "up: " << std::abs(up[iI]) << std::endl;
+
+    C_U_G[iI] = (up1[0] - up[0]) / pStep;
+    C_V_G[iI] = (up1[1] - up[1]) / pStep;
+    C_W_G[iI] = (up1[2] - up[2]) / pStep;
+  }
+
+  return {C_U_G, C_V_G, C_W_G};
+}
+// //-----------------------------------------------------------------------------
+// double advect_particles::cal_WallLiftSq(double dynVisc, 
+//   double particleDiameter, double particleDensity, double flowDensity,
+//   Point& zParam, double uMax, int i, int gdim, Point& up,
+//   Point& pPos, Point& dPoint, Point& P4, Point& C_U_G, Point& C_V_G,
+//   Point& C_W_G)
+// {
+
+//   // Initialise G1 and G2 for lift constants
+//   //  GSpot is based upon
+//   //    Ho, B. P., & Leal, L. G. (1974).
+//   //      Inertial migration of rigid spheres in
+//   //      two-dimensional unidirectional flows.
+//   //      Journal of Fluid Mechanics, 65(2), 365–400.
+//   //    https://doi.org/10.1017/S0022112074001431
+//   //  G1 in slot 0, G2 in slot 1
+//   //  The index is 0.01 step, index start at 0
+//   //    i.e. 49 is 0.50
+//   double GSpot[2][50] =
+//   { 
+//     { 0,
+//       0.0419,
+//       0.0837,
+//       0.1254,
+//       0.1669,
+//       0.208,
+//       0.2489,
+//       0.2894,
+//       0.3293,
+//       0.3688,
+//       0.4077,
+//       0.4459,
+//       0.4834,
+//       0.52,
+//       0.556,
+//       0.591,
+//       0.626,
+//       0.659,
+//       0.691,
+//       0.723,
+//       0.753,
+//       0.782,
+//       0.81,
+//       0.836,
+//       0.861,
+//       0.885,
+//       0.907,
+//       0.927,
+//       0.945,
+//       0.96,
+//       0.973,
+//       0.982,
+//       0.988,
+//       0.99,
+//       0.988,
+//       0.981,
+//       0.971,
+//       0.957,
+//       0.943,
+//       0.931,
+//       0.927,
+//       0.94,
+//       0.982,
+//       1.07,
+//       1.23,
+//       1.5,
+//       1.93,
+//       2.58,
+//       3.59,
+//       5.33
+//       },
+//     { 1.072,
+//       1.07,
+//       1.068,
+//       1.066,
+//       1.062,
+//       1.056,
+//       1.05,
+//       1.042,
+//       1.033,
+//       1.023,
+//       1.012,
+//       1.0,
+//       0.987,
+//       0.972,
+//       0.956,
+//       0.94,
+//       0.922,
+//       0.902,
+//       0.882,
+//       0.861,
+//       0.838,
+//       0.815,
+//       0.79,
+//       0.765,
+//       0.738,
+//       0.711,
+//       0.683,
+//       0.654,
+//       0.625,
+//       0.596,
+//       0.566,
+//       0.536,
+//       0.506,
+//       0.477,
+//       0.448,
+//       0.420,
+//       0.393,
+//       0.368,
+//       0.345,
+//       0.324,
+//       0.306,
+//       0.292,
+//       0.282,
+//       0.278,
+//       0.28,
+//       0.291,
+//       0.315,
+//       0.354,
+//       0.414,
+//       0.505
+//     }
+//   };
+
+//   // Calculate relative speed of particle and flow
+//   //    Require for stress rate and shear gradient
+//   // Point P4 = (_P->property(ci->index(), i, 7));
+//   // Point dPoint = (_P->property(ci->index(), i, 6));
+//   double h = zParam[0]; // Channel height
+//   // double w = dPoint[1]; // Channel width
+//   double w = 0.0005;
+//   double sT = dPoint[0]; // Particle distance from boundary
+//   double H = w;
+//   // double uMax = up.norm(); // double uNorm = up.norm();
+//   //// uM is Mean velocity in Ho and Leal is assumed to be
+//   ////    2/3 max flow velocity
+//   // double uM = 2.0 * uMax ;
+//   // uM /= 3.0;
+//   double uM = uMax;
+//   double particleRadius = particleDiameter / 2.0;
+  
+
+//   int s = ((sT / w) * 100.0);
+
+
+
+//   // If Z axis, use Z axis height and P position
+//   //  Assumed is Z is a constant height
+//   if (i == gdim-1)
+//   {
+//     H = h;
+//     double zMin = zParam[1];
+//     double sTT = (pPos[2] - zMin);
+//     // k = (particleRadius) / (H);
+//     // if ( (sTT > (H - (particleDiameter / 2) ) ) || (sTT < (particleDiameter / 2) ) )
+//     //   {
+//     //     sTT = particleDiameter / 10;
+//     //   }
+//     sTT /= h;
+//     sTT *= 100.0;
+//     s = sTT;
+//     std::cout << "pPos[2]: " << pPos[2] << std::endl;
+//     std::cout << "Za axis S value: " << ((pPos[2] - 0.0110585) / 0.00016) << std::endl;
+//     std::cout << "Za axis S value: " << sTT << std::endl;
+//     // uMax = 0.022;//0.0022;//0.000005; // Bouyancy acting upon particle
+//     // uMax = 0.000005;
+//     // uMax = 200; // uMax = 0.8; 1000 100
+//     // sT = (s * 0.01 * H);
+//   }
+
+//   // Hydraulic Diameter of rectangle channel
+//   // double A = w * h; // channel area
+// 	// double P = (w * 2) + (h * 2); // channel perimeter
+
+// 	// H = 4 * A / P; // hydraulic
+// 	// double Re = flowDensity * Um * Dh / (dynVisc * A);
+// 	// double kappa = particle_diameter / H; // blockage ratio
+//   H = (w * h);
+//   H *= 2;
+//   H /= (w + h);
+//   double k = (particleRadius) / (H);
+//   // double k = (particleDiameter) / (H);
+
+
+
+//   // Stopped the fail due to s = 0 causing inf bug
+//   if (s < 1)
+//   {
+//     s = 1;
+//   } else if (s > 99)
+//   {
+//     s = 99;
+//   }
+  
+//   int sU = 1;
+//   if (s > 50)
+//   {
+//     s = 100 - s;
+//     sU = -1;
+//   }
+
+//   // std::cout << "Flow uNorm: " << uNorm << std::endl;
+//   std::cout << "P distance from boundary: " << s << std::endl;
+//   // std::cout << "k: " << k << std::endl;
+//   // Invert for the GSpot as index 50 is 0 distance from wall
+//   s = 50 - s;
+
+
+//   //// Lift force
+//   // CL fitting parameter, determined to be 0.1 experimentally
+//   // double CL = 0.1;
+
+  
+//   //// Ho and Leal 1974 5.27
+//   // double Flnl = pow( (particleDiameter) , 4); // a
+//   // Flnl *= pow( (particleDiameter) , 2); // a
+//   double Flnl = pow( (particleRadius) , 2); // a
+//   Flnl *= pow( ( k ) , 2);
+//   Flnl *= flowDensity; // Reynolds;
+//   Flnl *= pow( uM , 2); // Max Velocity
+//   // Flnl *= CL;
+//   // Flnl /= (H * Um);
+//   // cal_CL(W/H, Re, kappa, s, &CL, i)
+  
+//   //// Shear rates based on Gab,
+//   //  a is inc. in pPos
+//   //  b is vel. vector 
+
+//   double Gxy = C_U_G[1];
+//   double Gxz = C_U_G[2];
+
+//   double Gyx = C_V_G[0];
+//   double Gyz = C_V_G[2];
+
+//   double Gzx = C_W_G[0];
+//   double Gzy = C_W_G[1];
+
+//   double U, G = 0;
+
+
+//   // Add ratio of X:Y vectors
+//   // double ratioU = 1;
+//   // Total magnitude of XY is...
+//   double MagXY = sqrt(pow( up[0], 2) + pow( up[1], 2));
+//   // Total magnitude of XY (face norm) is...
+//   // double MagXY = sqrt(pow( P4[0], 2) + pow( P4[1], 2));//P4[i]
+
+//   if (i == 0) // Add lift to X
+//   {
+//     U = sqrt(pow(up[1], 2) + pow(up[2], 2));
+//     // double G = sqrt(pow( (Gxz), 2) + pow( (Gxy), 2));
+//     G = sqrt(pow( (Gzx), 2) + pow( (Gyx), 2));
+//     U *= C_U_G[0] / std::abs(C_U_G[0]);
+//     // Flnl *= ( (G * pow(U, 2)) / (uM * H));
+    
+//     // up1 is the direction along the X or Y axis the particle is moving
+//     //  This assumes a parabolic where flow drops off towards the boundaries
+//     //  Therefore, particle movement should be in the opposite direction to movement
+//     Flnl *= (std::abs(up[1]) / MagXY);
+//     // Flnl *= (std::abs(P4[i]) / MagXY);
+    
+//     // Use G for flow gradient?
+
+//     if (P4[0] < 0)//(P4[i] < 0) // Negative along axis
+//     {
+//       // std::cout << "Flnl: " << Flnl << std::endl;
+//       // up[ii] += ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
+//       // up[ii] += std::abs((lift * (std::abs(up[iP]) / ratioU) ) * ForceBal * (exp(-dt/ForceBal) - 1));
+//       Flnl *= -1;
+//     }
+//   } else if (i == 1) // Add lift to Y
+//   {
+//     U = sqrt(pow(up[0], 2) + pow(up[2], 2));
+//     // double G = sqrt(pow(1/Gxy, 2) + pow( (Gyz), 2));
+//     G = sqrt(pow(Gxy, 2) + pow( (Gzy), 2));
+//     U *= C_V_G[1] / std::abs(C_V_G[1]);
+//     // Flnl *= ( (G * pow(U, 2)) / (uM * H));
+
+//     //  Using the defined G1 and G2 earlier
+//     //  & shear rate and shear gradient
+//     // double CL = ( ( pow( G, 2) * GSpot[0][s] ) + (G * U * GSpot[1][s] ) ) / (uM * H) ;
+//     // Flnl *= CL;
+
+//     // Add ratio of X:Y vectors
+//     // double ratioU = 1;
+//     // Total magnitude of XY is...
+//     // double MagXY = sqrt(pow( up[0], 2) + pow( up[1], 2));
+//     // Total magnitude of XY (face norm) is...
+//     // double MagXY = sqrt(pow( P4[0], 2) + pow( P4[1], 2));//P4[i]
+    
+//     // up1 is the direction along the X or Y axis the particle is moving
+//     //  This assumes a parabolic where flow drops off towards the boundaries
+//     //  Therefore, particle movement should be in the opposite direction to movement
+//     Flnl *= (std::abs(up[0]) / MagXY);
+//     // Flnl *= (std::abs(P4[i]) / MagXY);
+//     if (P4[1] < 0)//(P4[i] < 0) // Negative along axis
+//     {
+//       // std::cout << "Flnl: " << Flnl << std::endl;
+//       // up[ii] += ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
+//       // up[ii] += std::abs((lift * (std::abs(up[iP]) / ratioU) ) * ForceBal * (exp(-dt/ForceBal) - 1));
+//       Flnl *= -1;
+//     }
+//   } else { // Add lift to Z
+//     U = sqrt(pow(up[0], 2) + pow(up[1], 2));
+//     // double G = sqrt(pow(1/Gxz, 2) + pow(1/Gyz, 2));
+//     G = sqrt(pow(Gxz, 2) + pow(Gyz, 2));
+//     // U *= C_W_G[2] / std::abs(C_W_G[2]);
+//     // Flnl *= ( (G * pow(U, 2)) / (uM * H));
+
+//     // //  Using the defined G1 and G2 earlier
+//     // //  & shear rate and shear gradient
+//     // double CL = ( ( pow( G, 2) * GSpot[0][s] ) + (G * U * GSpot[1][s] ) ) / (uM * H) ;
+//     // Flnl *= CL;
+
+//     Flnl *= sU;
+//     // if (P4[2] < 0)//(P4[i] < 0) // Negative along axis
+//     // {
+//       // std::cout << "Flnl: " << Flnl << std::endl;
+//       // up[ii] += ( lift * (std::abs(up[iP]) / ratioU) );// * 10000;
+//       // up[ii] += std::abs((lift * (std::abs(up[iP]) / ratioU) ) * ForceBal * (exp(-dt/ForceBal) - 1));
+//       // Flnl *= -1;
+//     // }
+//     // Flnl = 0;
+//     // std::cout << "Flnl(z): " << Flnl << std::endl;
+//   }
+
+//   //  Using the defined G1 and G2 earlier
+//   //  & shear rate and shear gradient
+//   // double CL = ( ( ( pow( G, 2) * GSpot[0][s] ) / pow(uM,2) )
+//   //               + ( (G * (U * H) * GSpot[1][s] ) / (uM) ) );
+//   // double beta = U * G * H;
+//   //// Shear Gradient - Velocity perpendicular over a distance
+//   // double beta = std::abs(G * (H / uM));
+//   double beta = G * (H / uM);
+  
+//   // //// Shear rate - Velocity perpendicular to fluid flow
+//   double Lander = pow(U, 2) / pow(uM, 2);
+
+//   // Check negative / positive velocity gradient
+//   //    important for lift across channel
+
+//   // double Lander = pow(beta, 2); 
+//   // double Lander = U / uM;
+
+  
+
+//   //// Ho & Leal 1974 Lift Coefficient parabolic 2D flow
+//   // beta = 4.0 * (1.0 - (2.0 * (s * 0.01))); // * uM
+
+//   beta = (50.0 - s) * 0.01;
+//   beta *= 2.0;
+//   // std::cout << "beta: " << beta << std::endl;
+//   beta = 1.0 - beta;
+//   // std::cout << "beta: " << beta << std::endl;
+//   beta *= 4.0;
+//   Lander = -4.0; // * uM;
+//   // Lander = 0;
+
+//   // std::cout << "beta: " << beta << std::endl;
+//   // std::cout << "Lander: " << Lander << std::endl;
+//   // std::cout << "G1: " << GSpot[0][s] << std::endl;
+//   // std::cout << "G2: " << GSpot[1][s] << std::endl;
+
+//   // Lander *= U / std::abs(U); // Find Lander direction
+  
+//   // double CL = ( (( pow( beta, 2) * GSpot[0][s] ))
+//   //               - (( beta * Lander * GSpot[1][s] )) );
+
+//   double CL = ( (( pow( beta, 2) * GSpot[0][s] ))
+//                 + (( beta * Lander * GSpot[1][s] )) );
+//   Flnl *= CL;
+
+//   // Flnl *= G * pow(U, 2);
+//   std::cout << "CL: " << CL << std::endl;
+
+//   //// Convert force to acceleration
+//   // F = m*a == a = F/m
+//   // m = volume(Sphere) * density == 1/6 pi D^3 * Particle Density
+//   double PI = 3.14159265358979323846;
+//   double mass = (PI * pow( particleDiameter, 3 )); // Volume
+//   // std::cout << "mass1: " << mass << std::endl;
+//   mass /= 6.0;
+//   // std::cout << "mass2: " << mass << std::endl;
+//   mass *= particleDensity; // mass
+//   // std::cout << "mass3: " << mass << std::endl;
+//   Flnl /= mass; // F/m = Acceleration
+//   std::cout << "Flnl: " << Flnl << std::endl;
+
+//   // // Ho & Leal (1974) Lateral Particle Velocity Eq. 6.1
+//   // double mass = (6 * PI * dynVisc * particleRadius);
+//   // double mass = 6 * PI * dynVisc;
+//   // Flnl /= mass; // F/m = Acceleration
+//   // // Calculate Particle Reynolds (using dimensionless Um)
+//   // double Reynolds = particleDensity * uMax * particleRadius * k;
+//   // Reynolds /= dynVisc;
+//   // Flnl /= Reynolds; // Usz * Re = Flnl
+
+//   return Flnl;
+// }
+
+//-----------------------------------------------------------------------------
+// Point advect_particles::VirtualMass(double flowDensity, double particleDensity,
+//                                     Point u, Point up, double dT)
+// {
+//   // Virtual mass accounts for the fluid velocity around a particle
+
+//   double VM = 0.5 * (flowDensity / particleDensity) * ((u - up) / dT);
+
+//   return VM;
+// }
 
 //-----------------------------------------------------------------------------
 // Point advect_particles::cal_ParticleDistToBoundary(const Mesh bmesh, Point pPos,
@@ -1657,7 +2325,7 @@ void advect_particles::do_step(double dt,
           Point zParam = Acceleration;
           zParam[0] = LPTParameters[4]; // channel height
           zParam[1] = LPTParameters[5]; // minimum z
-          double uMax = LPTParameters[6];
+          // double uMax = LPTParameters[6];
           // if (LPTParameters[6] == 0)
           // {
             // pPos = cal_ParticleDistToBoundary(bmeshXY, Zmid)
@@ -1667,9 +2335,10 @@ void advect_particles::do_step(double dt,
             //   pPos, gdim, LPTParameters[4], LPTParameters[5], dt);
 
 
-          Acceleration[iI] = this->cal_WallLiftSq(LPTParameters[3],
-            LPTParameters[0], LPTParameters[1], LPTParameters[2],
-            zParam, uMax, iI, gdim, up, pPos, dPoint, P4);
+          // Acceleration[iI] = this->cal_WallLiftSq(LPTParameters[3],
+          //   LPTParameters[0], LPTParameters[1], LPTParameters[2],
+          //   zParam, uMax, iI, gdim, up, pPos, dPoint, P4);
+          Acceleration[iI] = 0;
         }
       }
 
@@ -3155,9 +3824,10 @@ void advect_rk2::do_step(double dt,
             //   pPos, gdim, LPTParameters[4], LPTParameters[5], dt);
 
           // Calculate Wall Lift force
-          Acceleration[iI] = this->cal_WallLiftSq(LPTParameters[3],
-            LPTParameters[0], LPTParameters[1], LPTParameters[2],
-            zParam, uMax, iI, gdim, up, pPos, dPoint, P4);
+          // Acceleration[iI] = this->cal_WallLiftSq(LPTParameters[3],
+          //   LPTParameters[0], LPTParameters[1], LPTParameters[2],
+          //   zParam, uMax, iI, gdim, up, pPos, dPoint, P4);
+          Acceleration[iI] = 0;
 
           // Cal Relative Reynolds (particle to flow)
           double reynolds = this->cal_reynolds(LPTParameters[3],
@@ -3553,10 +4223,11 @@ void advect_rk3::do_step(double dt,
         // Current Particle velocity
         Point up_1 = (_P->property(ci->index(), i, 1));
         std::cout << "P Vel Curr: " << up_1 << std::endl;
+        double particleDiameter = LPTParameters[0];
 
         // Calculate relax parameter
         double relax = this->cal_relax(
-          LPTParameters[3], LPTParameters[0], LPTParameters[1]);
+          LPTParameters[3], particleDiameter, LPTParameters[1]);
 
         Point Acceleration = up;
         Point ForceBalance = up;
@@ -3575,20 +4246,48 @@ void advect_rk3::do_step(double dt,
         zParam[0] = LPTParameters[4]; // channel height
         zParam[1] = LPTParameters[5]; // minimum z
 
-        // Point pPos1 = pPos;
-        // pPos1[0] += P4.x() * (((dPoint[1]/2)-dPoint[0]) / Mag); // x axis
-        // pPos1[1] += P4.y() * (((dPoint[1]/2)-dPoint[0]) / Mag); // y axis
-        // pPos1[2] = zParam[1] + (zParam[0] / 2);
+        Point C_U_G, C_V_G, C_W_G;
 
-        // // Calculate uMax for lfit force
-        // Utils::return_basis_matrix(basis_mat.data(), pPos1, *ci,
-        //                             _element);
-        // Eigen::VectorXd u_p1 = basis_mat * exp_coeffs;
+        advect_particles::cal_ShearGradient(up, pPos, gdim, basis_mat,
+                            *ci, exp_coeffs, _element);
+        std::cout << "C_U_G.x() " << C_U_G.x() << std::endl;
 
-        // double uMax = sqrt((u_p1.x() * u_p1.x())
-        //                 + (u_p1.y() * u_p1.y())
-        //                 + (u_p1.z() * u_p1.z()));
+        // Caluclate shear gradient C_U_G??
 
+        // double Gxy = ( (sqrt(std::abs( ((u_p1.x() * u_p1.x())
+        //         -(u_p.x() * u_p.x()))
+        //         +((u_p1.y() * u_p1.y())
+        //         -(u_p.y() * u_p.y()) ))))
+        //         / particleDiameter);
+        // double Gxz = ( (sqrt(std::abs( ((u_p1.x() * u_p1.x())
+        //         -(u_p.x() * u_p.x()))
+        //         +((u_p1.z() * u_p1.z())
+        //         -(u_p.z() * u_p.z()) ))))
+        //         / particleDiameter);
+        // double Gyz = ( (sqrt(std::abs( ((u_p1.y() * u_p1.y())
+        //         -(u_p.y() * u_p.y()))
+        //         +((u_p1.z() * u_p1.z())
+        //         -(u_p.z() * u_p.z()) ))))
+        //         / particleDiameter);
+
+        // double Gxy = ( ((u_p1.x() - u_p.x())
+        //         + (u_p1.y() - u_p.y()))
+        //         / particleDiameter);
+        // double Gxz = ( ((u_p1.x() - u_p.x())
+        //         + (u_p1.z() - u_p.z()))
+        //         / particleDiameter);
+        // double Gyz = ( ((u_p1.y() - u_p.y())
+        //         + (u_p1.z() - u_p.z()))
+        //         / particleDiameter);
+
+        // double Gxy = ( (u_p.x()) / (u_p.y()) );
+        // double Gxz = ( (u_p.x()) / (u_p.z()) );
+        // double Gyz = ( (u_p.y()) / (u_p.z()) );
+
+        // std::cout << "Gxy: " << Gxy << std::endl;
+        // std::cout << "Gxz: " << Gxz << std::endl;
+        // std::cout << "Gyz: " << Gyz << std::endl;
+        std::cout << "P4: " << P4 << std::endl;
         // std::cout << "pPos1: " << pPos1 << std::endl;
         // std::cout << "u_p1: " << u_p1 << std::endl;
         // std::cout << "uMax: " << uMax << std::endl;
@@ -3597,6 +4296,7 @@ void advect_rk3::do_step(double dt,
         Acceleration *= 0;
         ForceBalance *= 0;
         WallCor *= 0;
+
         for (std::size_t iI = 0; (iI < gdim); iI++)
         {
           double uMax = LPTParameters[6];
@@ -3615,14 +4315,24 @@ void advect_rk3::do_step(double dt,
             //   LPTParameters[0], LPTParameters[2], reynolds, iI, up, up1,
             //   pPos, gdim, LPTParameters[4], LPTParameters[5], dt);
 
-          // Calculate Wall Lift force
-          Acceleration[iI] = this->cal_WallLiftSq(LPTParameters[3],
+          ////// Calculate Wall Lift force
+          //// Ho & Leal 1974 stated parabolic flow parameters
+          Acceleration[iI] = this->cal_NetLiftHoLeal1974(LPTParameters[3],
             LPTParameters[0], LPTParameters[1], LPTParameters[2],
             zParam, uMax, iI, gdim, up, pPos, dPoint, P4);
+          //// Ho & Leal 1974 using fluid devired shear gradient & rate
+          // Acceleration[iI] = this->cal_NetLiftHoLeal1974(LPTParameters[3],
+          //   LPTParameters[0], LPTParameters[1], LPTParameters[2],
+          //   zParam, uMax, iI, gdim, up, pPos, dPoint, P4,
+          //   C_U_G, C_V_G, C_W_G);
+          // Acceleration[iI] = this->cal_WallLiftSq(LPTParameters[3],
+          //   particleDiameter, LPTParameters[1], LPTParameters[2],
+          //   zParam, uMax, iI, gdim, up, pPos, dPoint, P4,
+          //   C_U_G, C_V_G, C_W_G);
 
           // Cal Relative Reynolds (particle to flow)
           double reynolds = this->cal_reynolds(LPTParameters[3],
-            LPTParameters[0], LPTParameters[2], up[iI], up_1[iI]);
+            particleDiameter, LPTParameters[2], up[iI], up_1[iI]);
           
           std::cout << "Reynolds: " << reynolds << std::endl;
 
@@ -3672,9 +4382,24 @@ void advect_rk3::do_step(double dt,
           //   WallCor *= -1;
           // }
 
+
+          //// Virtual Mass
+          // double VM = ( 0.5 * (LPTParameters[2] / LPTParameters[1])
+          //             * ((up[iI] - up_1[iI]) / (dt * dti[step])) );
+          // Acceleration[iI] += VM;
+          // //// Non-bouyant particles
+          // // Apply only to Z axis
+          // if (iI == 2)
+          // {
+          //   const double G = 9.8; // Gravity
+          //   double AddG = (LPTParameters[1] - LPTParameters[2]);
+          //   AddG *= G;
+          //   AddG /= LPTParameters[1];
+          //   Acceleration[iI] -= AddG;
+          // }
+
         }
 
-        
 
         // if (LPTParameters[6] == 0)
         // {
