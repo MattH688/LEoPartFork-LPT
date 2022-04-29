@@ -1555,9 +1555,9 @@ double advect_particles::cal_NetLiftHoLeal1974(double dynVisc,
   }
 
   // Hydraulic Diameter of rectangle channel
-  H = (w * h);
-  H *= 2;
-  H /= (w + h);
+  // H = (w * h);
+  // H *= 2;
+  // H /= (w + h);
   double k = (particleRadius) / (H);
 
 
@@ -4247,9 +4247,10 @@ void advect_rk3::do_step(double dt,
         zParam[1] = LPTParameters[5]; // minimum z
 
         Point C_U_G, C_V_G, C_W_G;
-
-        advect_particles::cal_ShearGradient(up, pPos, gdim, basis_mat,
+        std::tuple<Point, Point, Point> G =
+          advect_particles::cal_ShearGradient(up, pPos, gdim, basis_mat,
                             *ci, exp_coeffs, _element);
+        C_U_G = std::get<0>(G); C_V_G = std::get<1>(G); C_W_G = std::get<2>(G);
         std::cout << "C_U_G.x() " << C_U_G.x() << std::endl;
 
         // Caluclate shear gradient C_U_G??
@@ -4317,14 +4318,14 @@ void advect_rk3::do_step(double dt,
 
           ////// Calculate Wall Lift force
           //// Ho & Leal 1974 stated parabolic flow parameters
-          Acceleration[iI] = this->cal_NetLiftHoLeal1974(LPTParameters[3],
-            LPTParameters[0], LPTParameters[1], LPTParameters[2],
-            zParam, uMax, iI, gdim, up, pPos, dPoint, P4);
-          //// Ho & Leal 1974 using fluid devired shear gradient & rate
           // Acceleration[iI] = this->cal_NetLiftHoLeal1974(LPTParameters[3],
           //   LPTParameters[0], LPTParameters[1], LPTParameters[2],
-          //   zParam, uMax, iI, gdim, up, pPos, dPoint, P4,
-          //   C_U_G, C_V_G, C_W_G);
+          //   zParam, uMax, iI, gdim, up, pPos, dPoint, P4);
+          //// Ho & Leal 1974 using fluid devired shear gradient & rate
+          Acceleration[iI] = this->cal_NetLiftHoLeal1974(LPTParameters[3],
+            LPTParameters[0], LPTParameters[1], LPTParameters[2],
+            zParam, uMax, iI, gdim, up, pPos, dPoint, P4,
+            C_U_G, C_V_G, C_W_G);
           // Acceleration[iI] = this->cal_WallLiftSq(LPTParameters[3],
           //   particleDiameter, LPTParameters[1], LPTParameters[2],
           //   zParam, uMax, iI, gdim, up, pPos, dPoint, P4,
